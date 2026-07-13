@@ -10,8 +10,6 @@ A single-page tabbed gallery of throwaway UI prototypes for design & dev hand-of
 ## Features
 | Tab | File |
 |---|---|
-| Corporate Actions · Investor | `features/corporate-actions-investor.html` |
-| Corporate Actions · Admin | `features/corporate-actions-admin.html` |
 | ECF Checkout · Wallet | `features/ecf-checkout-wallet.html` |
 | PSTX · Transaction History | `features/pstx-transaction-history.html` |
 | PSTX · Balance on Hold | `features/pstx-balance-on-hold.html` |
