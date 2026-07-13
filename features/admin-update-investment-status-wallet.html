@@ -1,0 +1,521 @@
+<title>Update Investment Status — Wallet payment method</title>
+<style>
+  :root {
+    --primary: #BF2026;
+    --primary-dark: #7D1F23;
+    --primary-lightest: #fff2f2;
+    --primary-light: #FEE2E3;
+    --secondary: #006927;
+    --secondary-light: #0A994A;
+    --secondary-lightest: #C2F0CA;
+    --warning: #E18437;
+    --warning-light: #FAEDDA;
+    --divider: #e7e7e7;
+    --divider-dark: #9f9f9f;
+    --body-text: #6a6a6a;
+    --heading-text: #333333;
+    --table-bg: #EAECF0;
+    --card-shadow: 0px 4px 32px 0px rgba(0,0,0,0.16);
+    --bg-page: #eef0f3;
+    --card-bg: #ffffff;
+    --input-bg: #ffffff;
+    --wallet-block-bg: #f2fbf5;
+    --sidebar-bg: #1f2937;
+    --sidebar-text: #b9c0cc;
+    --shell-heading: #2b2f36;
+    --shell-label: #8a9099;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg-page: #16171a;
+      --card-bg: #26272b;
+      --input-bg: #2f3034;
+      --divider: #3a3b40;
+      --divider-dark: #55565c;
+      --body-text: #b7b7bd;
+      --heading-text: #f0f0f2;
+      --table-bg: #2f3136;
+      --primary-lightest: #3a2224;
+      --primary-light: #4a2527;
+      --secondary-lightest: #17301f;
+      --wallet-block-bg: #142a1c;
+      --sidebar-bg: #101215;
+      --shell-heading: #e6e7ea;
+      --shell-label: #7d828c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg-page: #16171a;
+    --card-bg: #26272b;
+    --input-bg: #2f3034;
+    --divider: #3a3b40;
+    --divider-dark: #55565c;
+    --body-text: #b7b7bd;
+    --heading-text: #f0f0f2;
+    --table-bg: #2f3136;
+    --primary-lightest: #3a2224;
+    --primary-light: #4a2527;
+    --secondary-lightest: #17301f;
+    --wallet-block-bg: #142a1c;
+    --sidebar-bg: #101215;
+    --shell-heading: #e6e7ea;
+    --shell-label: #7d828c;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: Poppins, "Segoe UI", Inter, -apple-system, sans-serif;
+    background: var(--bg-page);
+    color: var(--heading-text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+  .proto-note {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--body-text);
+    text-align: center;
+    line-height: 1.5;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--divider);
+  }
+  .proto-note b { color: var(--heading-text); }
+  .proto-note code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; background: var(--table-bg); padding: 1px 5px; border-radius: 4px; color: var(--heading-text);
+  }
+
+  /* ================= ADMIN SHELL (background context) ================= */
+  .app { display: flex; min-height: calc(100vh - 40px); }
+  .sidebar {
+    width: 210px; flex-shrink: 0; background: var(--sidebar-bg); color: var(--sidebar-text);
+    padding: 20px 0; font-family: Inter, sans-serif;
+  }
+  .sidebar .brand {
+    font-family: Poppins, sans-serif; font-weight: 800; font-size: 20px; color: #fff;
+    padding: 0 22px 20px; letter-spacing: -0.02em;
+  }
+  .sidebar .brand span { color: var(--primary); }
+  .sidebar .nav-item {
+    display: flex; align-items: center; gap: 11px; padding: 11px 22px; font-size: 13.5px; cursor: default;
+  }
+  .sidebar .nav-item .ico { width: 17px; text-align: center; opacity: .8; }
+  .sidebar .nav-item.active { background: rgba(191,32,38,0.16); color: #fff; border-left: 3px solid var(--primary); padding-left: 19px; }
+  .sidebar .nav-item.active .ico { opacity: 1; }
+  .sidebar .nav-group { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; opacity: .5; padding: 16px 22px 6px; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    height: 58px; background: var(--card-bg); border-bottom: 1px solid var(--divider);
+    display: flex; align-items: center; justify-content: flex-end; padding: 0 26px; gap: 14px;
+  }
+  .topbar .search {
+    flex: 1; max-width: 320px; margin-right: auto; height: 34px; border-radius: 6px;
+    border: 1px solid var(--divider); background: var(--bg-page); display: flex; align-items: center;
+    padding: 0 12px; color: var(--shell-label); font-size: 13px; font-family: Inter, sans-serif;
+  }
+  .topbar .avatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; font-family: Inter, sans-serif;
+  }
+  .topbar .who { font-size: 13px; font-family: Inter, sans-serif; color: var(--heading-text); }
+  .topbar .who small { display: block; color: var(--shell-label); font-size: 11px; }
+
+  .content { padding: 22px 26px; font-family: Inter, sans-serif; }
+  .breadcrumb {
+    font-size: 12.5px; color: var(--shell-label); margin-bottom: 16px; display: flex; align-items: center; gap: 7px;
+  }
+  .breadcrumb .sep { opacity: .6; }
+  .breadcrumb .here { color: var(--heading-text); font-weight: 600; }
+
+  .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .page-head h1 { font-family: Poppins, sans-serif; font-size: 22px; font-weight: 700; margin: 0; color: var(--shell-heading); }
+  .head-actions { display: flex; gap: 10px; }
+
+  .cardboard {
+    background: var(--card-bg); border-radius: 10px; box-shadow: var(--card-shadow); padding: 24px 26px;
+  }
+  .kpi-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; padding-bottom: 20px; border-bottom: 1px solid var(--divider); }
+  .kpi .k-label { font-size: 12px; font-weight: 700; color: var(--heading-text); margin-bottom: 8px; }
+  .kpi .k-value { font-family: Poppins, sans-serif; font-size: 20px; font-weight: 700; color: var(--shell-heading); line-height: 1.2; }
+  .kpi .k-value small { font-size: 12px; font-weight: 500; color: var(--body-text); }
+  .badge-status {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 11px; border-radius: 20px; letter-spacing: .02em;
+  }
+  .badge-paid { background: var(--secondary-lightest); color: var(--secondary-light); }
+  .badge-na { color: var(--body-text); font-weight: 600; }
+
+  .tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--divider); margin: 18px 0 22px; }
+  .tab { padding: 12px 2px; font-size: 14px; font-weight: 600; color: var(--body-text); cursor: default; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  .section-title { font-family: Poppins, sans-serif; font-size: 15px; font-weight: 700; color: var(--shell-heading); margin: 22px 0 14px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 40px; }
+  .info .i-label { font-size: 12px; color: var(--shell-label); margin-bottom: 4px; }
+  .info .i-value { font-size: 15px; font-weight: 700; color: var(--shell-heading); }
+  .info .i-value.link { color: var(--primary); }
+
+  /* ================= BACKDROP + MODAL ================= */
+  .backdrop {
+    position: fixed; inset: 0; background: rgba(20,22,26,0.55); backdrop-filter: blur(1.5px);
+    display: flex; align-items: center; justify-content: center; padding: 14px 16px; overflow-y: auto; z-index: 50;
+  }
+  .modal-card {
+    background: var(--card-bg); border-radius: 10px; box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+    width: 100%; max-width: 520px; overflow: hidden; font-family: Poppins, sans-serif;
+  }
+  .modal-header { padding: 14px 24px 6px; }
+  .modal-header h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--heading-text); }
+  .modal-body { padding: 2px 24px 4px; }
+  .modal-footer { padding: 10px 24px 14px; display: flex; justify-content: flex-end; gap: 10px; align-items: center; }
+
+  .btn {
+    font-family: Inter, sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .02em;
+    border-radius: 5px; padding: 10px 24px; border: 1px solid transparent; cursor: pointer;
+  }
+  .btn-cancel { background: transparent; border-color: var(--divider-dark); color: var(--body-text); }
+  .btn-secondary { background: var(--secondary); color: #fff; }
+  .btn-outline { background: transparent; border-color: var(--secondary); color: var(--secondary); }
+  .btn-action { font-size: 13px; padding: 9px 18px; }
+  .btn-primary { background: var(--primary); color: #fff; text-transform: uppercase; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-primary:disabled, .btn-primary.disabled {
+    background: var(--divider); color: var(--divider-dark); cursor: not-allowed; text-transform: uppercase;
+    border-color: transparent;
+  }
+
+  .form-group { margin-bottom: 8px; }
+  .input-label { font-size: 12px; font-weight: 600; color: var(--heading-text); margin-bottom: 4px; }
+  .input-label .req { color: var(--primary); margin-left: 1px; }
+  .form-control, select.form-control, textarea.form-control {
+    width: 100%; font-family: Inter, sans-serif; font-size: 13px; padding: 7px 11px;
+    border: 1px solid var(--divider-dark); border-radius: 6px; background: var(--input-bg); color: var(--heading-text); appearance: none;
+  }
+  select.form-control {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236a6a6a'%3E%3Cpath d='M5.5 7.5l4.5 5 4.5-5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 32px;
+  }
+  select.form-control:disabled { background-color: var(--table-bg); color: var(--body-text); cursor: not-allowed; }
+  textarea.form-control { resize: vertical; min-height: 52px; }
+  .input-group { position: relative; }
+  .input-group .cal { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--body-text); font-size: 16px; pointer-events: none; }
+
+  .checkbox-row { display: flex; gap: 22px; align-items: center; }
+  .checkbox-row label { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--heading-text); cursor: pointer; }
+  .checkbox-row input { accent-color: var(--primary); width: 16px; height: 16px; }
+
+  .upload-box {
+    border: 1px dashed var(--divider-dark); border-radius: 6px; padding: 11px; display: flex; justify-content: space-between;
+    align-items: center; font-size: 13px; color: var(--body-text); cursor: pointer; background: var(--input-bg);
+  }
+  .upload-box .pi { color: var(--primary); font-size: 16px; }
+
+  .method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .method-card {
+    border: 1.5px solid var(--divider); border-radius: 8px; padding: 9px 11px; display: flex; align-items: flex-start;
+    gap: 9px; cursor: pointer; background: var(--card-bg); transition: border-color .12s, background .12s; min-height: 58px;
+  }
+  .method-card:hover { border-color: var(--divider-dark); }
+  .method-card.selected { border-color: var(--primary); background: var(--primary-lightest); }
+  .method-card input[type="radio"] { width: 16px; height: 16px; accent-color: var(--primary); flex-shrink: 0; margin-top: 1px; }
+  .method-card .method-name { font-weight: 600; font-size: 12.5px; color: var(--heading-text); line-height: 1.25; font-family: Inter, sans-serif; }
+  .method-card .method-sub { font-size: 11px; color: var(--body-text); margin-top: 2px; line-height: 1.25; font-family: Inter, sans-serif; }
+  .pill { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .04em; padding: 2px 6px; border-radius: 20px; text-transform: uppercase; margin-top: 4px; font-family: Inter, sans-serif; }
+  .pill-wallet { background: var(--secondary-lightest); color: var(--secondary-light); }
+  .pill-verify { background: var(--warning-light); color: var(--warning); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill-verify { background: #3a2c1a; } }
+  :root[data-theme="dark"] .pill-verify { background: #3a2c1a; }
+
+  /* wallet balance check */
+  .wallet-balance {
+    border-radius: 8px; padding: 10px 13px; font-family: Inter, sans-serif;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .wallet-balance.ok { background: var(--wallet-block-bg); border: 1.5px solid var(--secondary-light); }
+  .wallet-balance.bad { background: var(--primary-lightest); border: 1.5px solid var(--primary); }
+  .wb-row { display: flex; justify-content: space-between; font-size: 12.5px; }
+  .wb-row .wb-k { color: var(--body-text); }
+  .wb-row .wb-v { font-weight: 700; color: var(--heading-text); font-variant-numeric: tabular-nums; }
+  .wb-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding-top: 6px; border-top: 1px dashed var(--divider-dark); }
+  .wallet-balance.ok .wb-status { color: var(--secondary-light); }
+  .wallet-balance.bad .wb-status { color: var(--primary); }
+  .wb-shortfall { color: var(--primary); font-weight: 700; }
+
+
+  .footer-msg { margin-right: auto; font-family: Inter, sans-serif; font-size: 12px; color: var(--primary); font-weight: 600; display: none; align-items: center; gap: 6px; max-width: 260px; line-height: 1.35; }
+
+  /* ================= scenario switcher ================= */
+  .switcher {
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: #101215; color: #fff;
+    border-radius: 999px; padding: 7px 9px; display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4); font-family: Inter, sans-serif; z-index: 200; user-select: none;
+  }
+  .switcher .s-title { font-size: 11px; opacity: .6; padding: 0 6px 0 8px; }
+  .switcher .seg { display: flex; background: rgba(255,255,255,0.1); border-radius: 999px; padding: 3px; }
+  .switcher .seg button {
+    border: none; background: transparent; color: rgba(255,255,255,0.7); font-size: 12.5px; font-weight: 600;
+    padding: 7px 14px; border-radius: 999px; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .switcher .seg button.active { background: #fff; color: #101215; }
+  .switcher .seg button .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .switcher .seg button[data-s="ok"] .dot { background: var(--secondary-light); }
+  .switcher .seg button[data-s="bad"] .dot { background: var(--primary); }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .kpi-row { grid-template-columns: repeat(3, 1fr); }
+    .info-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="proto-note">
+  <b>Prototype — throwaway.</b> Admin “Update Status” modal (Variant B, 2×2 picker) shown in context over
+  <b>Admin Portal → Investment Management → Investment Info</b>. Wallet → no receipt, <b>Remark compulsory</b> + a wallet-balance check.
+  Fields mirror <code>update-investment-status-modal.component.html</code> / <code>investment-info.component.html</code> on <code>staging</code>.
+  Toggle the balance scenario in the bar below.
+</div>
+
+<!-- ===================== BACKGROUND: ADMIN SHELL ===================== -->
+<div class="app" aria-hidden="true">
+  <aside class="sidebar">
+    <div class="brand">pitch<span>IN</span></div>
+    <div class="nav-group">Main</div>
+    <div class="nav-item"><span class="ico">▦</span> Dashboard</div>
+    <div class="nav-item"><span class="ico">🏢</span> Issuer Management</div>
+    <div class="nav-item active"><span class="ico">📈</span> Investment Management</div>
+    <div class="nav-item"><span class="ico">👥</span> Investor Management</div>
+    <div class="nav-group">Operations</div>
+    <div class="nav-item"><span class="ico">💳</span> Settlements</div>
+    <div class="nav-item"><span class="ico">📄</span> Reports</div>
+    <div class="nav-item"><span class="ico">⚙️</span> Settings</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="search">🔍&nbsp; Search…</div>
+      <div class="who">Admin User<small>Operations</small></div>
+      <div class="avatar">AU</div>
+    </div>
+
+    <div class="content">
+      <div class="breadcrumb">
+        <span>Investment Management</span><span class="sep">›</span>
+        <span class="here">Nurul Aisyah binti Rahman</span>
+      </div>
+
+      <div class="page-head">
+        <h1>Investment Detail</h1>
+        <div class="head-actions">
+          <button class="btn btn-secondary btn-action">Update Status</button>
+          <button class="btn btn-outline btn-action">Refund Investment</button>
+        </div>
+      </div>
+
+      <div class="cardboard">
+        <div class="kpi-row">
+          <div class="kpi"><div class="k-label">Investment Amount</div><div class="k-value">RM 5,000 <br><small>(5 Lot)</small></div></div>
+          <div class="kpi"><div class="k-label">Reference No.</div><div class="k-value">INV-100842</div></div>
+          <div class="kpi"><div class="k-label">Risk Class</div><div class="k-value"><span class="badge-status badge-paid">Sophisticated</span></div></div>
+          <div class="kpi"><div class="k-label">Investment Status</div><div class="k-value"><span class="badge-status badge-paid">Paid</span></div></div>
+          <div class="kpi"><div class="k-label">Refund Status</div><div class="k-value"><span class="badge-na">—</span></div></div>
+          <div class="kpi"><div class="k-label">Refund Amount</div><div class="k-value"><span class="badge-na">—</span></div></div>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active">Investment Info</div>
+          <div class="tab">EDD</div>
+        </div>
+
+        <div class="info-grid">
+          <div class="info"><div class="i-label">Investor Name</div><div class="i-value link">Nurul Aisyah binti Rahman</div></div>
+          <div class="info"><div class="i-label">Share Type</div><div class="i-value">Ordinary Share</div></div>
+          <div class="info"><div class="i-label">Invested Lot</div><div class="i-value">5 Lot</div></div>
+          <div class="info"><div class="i-label">Share Quantity</div><div class="i-value">5,000</div></div>
+          <div class="info"><div class="i-label">Invested Date</div><div class="i-value">10 Jul 2026, 03:14 PM</div></div>
+          <div class="info"><div class="i-label">Digital Cert</div><div class="i-value link">View</div></div>
+        </div>
+
+        <div class="section-title">Campaign Info</div>
+        <div class="info-grid">
+          <div class="info"><div class="i-label">Issuer Name</div><div class="i-value link">GreenTech Ventures Sdn Bhd</div></div>
+          <div class="info"><div class="i-label">Campaign Name</div><div class="i-value link">GreenTech Series A</div></div>
+          <div class="info"><div class="i-label">Campaign Status</div><div class="i-value">Live</div></div>
+          <div class="info"><div class="i-label">Referral Code</div><div class="i-value">—</div></div>
+        </div>
+
+        <div class="section-title">Payment Info</div>
+        <div class="info-grid">
+          <div class="info"><div class="i-label">Payment Mode</div><div class="i-value">Wallet</div></div>
+          <div class="info"><div class="i-label">Reference No.</div><div class="i-value">—</div></div>
+          <div class="info"><div class="i-label">Timestamp</div><div class="i-value">12 Jul 2026, 10:02 AM</div></div>
+          <div class="info"><div class="i-label">pitchIN/Issuer Account</div><div class="i-value">pitchIN Account</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL ===================== -->
+<div class="backdrop">
+  <div class="modal-card">
+    <div class="modal-header"><h2>Update Status</h2></div>
+    <div class="modal-body">
+
+      <div class="form-group">
+        <div class="input-label">Investment Status<span class="req">*</span></div>
+        <select class="form-control"><option>Paid</option><option>Payment Approval Pending</option><option>Completed</option></select>
+      </div>
+
+      <div class="form-group">
+        <div class="input-label">Payment Date<span class="req">*</span></div>
+        <div class="input-group"><input class="form-control" type="text" value="12 Jul 2026" readonly /><span class="cal">📅</span></div>
+      </div>
+
+      <div class="form-group">
+        <div class="input-label">Payment Method<span class="req">*</span></div>
+        <div class="method-grid" id="methods">
+          <label class="method-card" data-val="bankin">
+            <input type="radio" name="method" />
+            <div><div class="method-name">Domestic (Malaysia) Bank Transfer</div><span class="pill pill-verify">Receipt required</span></div>
+          </label>
+          <label class="method-card" data-val="cheque">
+            <input type="radio" name="method" />
+            <div><div class="method-name">Cheque Deposit</div><span class="pill pill-verify">Receipt required</span></div>
+          </label>
+          <label class="method-card" data-val="swift">
+            <input type="radio" name="method" />
+            <div><div class="method-name">Swift Payment</div><span class="pill pill-verify">Receipt required</span></div>
+          </label>
+          <label class="method-card selected" data-val="wallet">
+            <input type="radio" name="method" checked />
+            <div><div class="method-name">Wallet</div><div class="method-sub">Debited from investor’s pitchIN wallet</div><span class="pill pill-wallet">No receipt</span></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <div class="input-label">pitchIN/Issuer Account<span class="req">*</span></div>
+        <select class="form-control" id="account-select"><option>pitchIN Account</option><option>Issuer Account</option></select>
+      </div>
+
+      <!-- wallet balance check (only when Wallet selected) -->
+      <div class="form-group" id="balance-group">
+        <div class="wallet-balance ok" id="wallet-balance">
+          <div class="wb-row"><span class="wb-k">Investment amount</span><span class="wb-v">RM 5,000.00</span></div>
+          <div class="wb-row"><span class="wb-k">Investor wallet balance</span><span class="wb-v" id="wb-balance">RM 8,250.00</span></div>
+          <div class="wb-status" id="wb-status"><span>✓</span><span>Sufficient balance — this amount can be debited from the wallet.</span></div>
+        </div>
+      </div>
+
+      <div class="form-group" id="receipt-group" style="display:none;">
+        <div class="input-label">Payment Receipt<span class="req">*</span></div>
+        <div class="upload-box"><span>Upload receipt</span><span class="pi">⭱</span></div>
+      </div>
+
+      <div class="form-group" id="remark-group">
+        <div class="input-label">Remark<span class="req">*</span></div>
+        <textarea class="form-control" placeholder="e.g. Wallet balance debited RM5,000 — ref #WLT-88213"></textarea>
+      </div>
+
+      <div class="form-group">
+        <div class="input-label">Origin of Investment</div>
+        <select class="form-control"><option>Malaysia</option></select>
+      </div>
+
+      <div class="form-group">
+        <div class="input-label">Type of Transaction</div>
+        <div class="checkbox-row"><label><input type="checkbox" /> Third Party</label><label><input type="checkbox" /> Anonymous</label></div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <div class="footer-msg" id="footer-msg"><span>⚠</span><span>Insufficient wallet balance — cannot debit.</span></div>
+      <button class="btn btn-cancel">Cancel</button>
+      <button class="btn btn-primary" id="update-btn">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCENARIO SWITCHER ===================== -->
+<div class="switcher">
+  <span class="s-title">Wallet balance</span>
+  <div class="seg" id="scenarios">
+    <button data-s="ok" class="active"><span class="dot"></span>Sufficient</button>
+    <button data-s="bad"><span class="dot"></span>Insufficient</button>
+  </div>
+</div>
+
+<script>
+  var INVEST_AMOUNT = 5000;
+  var BALANCES = { ok: 8250, bad: 1200 };
+  var scenario = 'ok';
+  var method = 'wallet';
+
+  function fmt(n) { return 'RM ' + n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  var cards = document.querySelectorAll('#methods .method-card');
+  var wbBox = document.getElementById('wallet-balance');
+  var wbStatus = document.getElementById('wb-status');
+  var wbBalance = document.getElementById('wb-balance');
+  var updateBtn = document.getElementById('update-btn');
+  var footerMsg = document.getElementById('footer-msg');
+
+  function render() {
+    var isWallet = method === 'wallet';
+
+    // show/hide blocks
+    document.getElementById('balance-group').style.display = isWallet ? '' : 'none';
+    document.getElementById('receipt-group').style.display = isWallet ? 'none' : '';
+    document.getElementById('remark-group').style.display = isWallet ? '' : 'none';
+
+    // method card highlight
+    cards.forEach(function (c) {
+      var on = c.getAttribute('data-val') === method;
+      c.classList.toggle('selected', on);
+      if (on) c.querySelector('input[type=radio]').checked = true;
+    });
+
+    // Wallet must always settle to the pitchIN Account — force + lock (no visible label)
+    var accountSelect = document.getElementById('account-select');
+    if (isWallet) {
+      accountSelect.value = 'pitchIN Account';
+      accountSelect.disabled = true;
+    } else {
+      accountSelect.disabled = false;
+    }
+
+    // wallet balance evaluation
+    var balance = BALANCES[scenario];
+    var sufficient = balance >= INVEST_AMOUNT;
+    wbBalance.textContent = fmt(balance);
+
+    if (sufficient) {
+      wbBox.className = 'wallet-balance ok';
+      wbStatus.innerHTML = '<span>✓</span><span>Sufficient balance — this amount can be debited from the wallet.</span>';
+    } else {
+      var shortfall = INVEST_AMOUNT - balance;
+      wbBox.className = 'wallet-balance bad';
+      wbStatus.innerHTML = '<span>⚠</span><span>Insufficient balance — short by <span class="wb-shortfall">' + fmt(shortfall) + '</span>. Cannot debit the wallet.</span>';
+    }
+
+    // button state: disabled only when Wallet + insufficient
+    var block = isWallet && !sufficient;
+    updateBtn.disabled = block;
+    updateBtn.classList.toggle('disabled', block);
+    footerMsg.style.display = block ? 'flex' : 'none';
+  }
+
+  cards.forEach(function (c) {
+    c.addEventListener('click', function () { method = c.getAttribute('data-val'); render(); });
+  });
+  document.querySelectorAll('#scenarios button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      scenario = b.getAttribute('data-s');
+      document.querySelectorAll('#scenarios button').forEach(function (x) { x.classList.toggle('active', x === b); });
+      render();
+    });
+  });
+
+  render();
+</script>

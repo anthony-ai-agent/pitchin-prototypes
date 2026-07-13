@@ -13,5 +13,6 @@ A single-page tabbed gallery of throwaway UI prototypes for design & dev hand-of
 | ECF Checkout · Wallet | `features/ecf-checkout-wallet.html` |
 | PSTX · Transaction History | `features/pstx-transaction-history.html` |
 | PSTX · Balance on Hold | `features/pstx-balance-on-hold.html` |
+| Admin · Update Investment Status | `features/admin-update-investment-status-wallet.html` |
 
 > Prototypes are illustrative; data shown is sample/dummy.
