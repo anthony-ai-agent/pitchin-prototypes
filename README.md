@@ -2,7 +2,8 @@
 
 A single-page tabbed gallery of throwaway UI prototypes for design & dev hand-off.
 
-- **Live gallery:** see the GitHub Pages URL for this repo.
+- **▶ Live interactive gallery:** https://anthony-ai-agent.github.io/pitchin-prototypes/
+  _(The `github.com` page above only shows the source code — open the link above for the clickable prototypes.)_
 - Each feature is a **standalone HTML file** under `features/` — the gallery's
   **“Export as HTML”** button downloads the exact file a developer can open/reuse.
 
