@@ -1,0 +1,575 @@
+<!-- BUILD HANDOFF — PSTX Account · Balance on Hold: "ECF investment" line (Phase 2.1, Variant A, anchored popover).
+     For an external front-end team building from scratch. Self-contained spec + interactive reference.
+     Product tokens, chrome, logo & buttons mirror PitchinCustomerWeb source. Ships before Phase 2.2 (allotment
+     removes the hold + logs a ledger row) and Phase 2.3 (refund credits) — see ecf-allotment-ledger-handoff.html
+     in docs/prototypes/pstx-account/ for those. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSTX Account — "ECF investment" line in Balance on Hold (Phase 2.1)</title>
+<!-- BUILD HANDOFF — PSTX Account · Balance on Hold: new "ECF investment" line (Variant A, anchored popover).
+     For an external front-end team building from scratch. Self-contained spec + interactive reference.
+     Product tokens, chrome, logo & buttons mirror PitchinCustomerWeb source. -->
+<style>
+  :root {
+    /* doc chrome (deliberately NOT the product palette) */
+    --doc-bg: #e9ebef;
+    --doc-sheet: #ffffff;
+    --doc-ink: #1a2233;
+    --doc-muted: #5b6577;
+    --doc-faint: #8a93a3;
+    --doc-hair: #dfe3e9;
+    --doc-accent: #027a48;
+    --doc-canvas: #e2e5ea;
+    --code-bg: #f4f6f8;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    /* product tokens (build target) */
+    --p-card: #ffffff;
+    --p-ink: #101828;
+    --p-muted: #6a6a6a;
+    --p-label: #7f7f7f;
+    --p-hair: #eaecf0;
+    --p-hover: #f9fafb;
+    --p-brand: #4eac5f;
+    --p-brand-deep: #206633;
+    --p-link: #027a48;
+    --p-new-bg: #ecfdf3;
+    --p-count-bg: #f6f6f6;
+    --p-btn-ghost-border: #d0d5dd;
+    --p-btn-ghost-text: #344054;
+  }
+  * { box-sizing: border-box; }
+  .doc { font-family: var(--sans); background: var(--doc-bg); color: var(--doc-ink); -webkit-font-smoothing: antialiased; line-height: 1.55; padding: 0 0 96px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+
+  /* masthead */
+  .mast { background: #0f1729; color: #fff; padding: 34px 0 30px; margin-bottom: 28px; }
+  .mast .wrap { display: flex; flex-direction: column; gap: 14px; }
+  .mast h1 { margin: 0; font-size: 27px; font-weight: 650; letter-spacing: -.01em; text-wrap: balance; }
+  .mast .sub { color: #aeb7c7; font-size: 15px; margin: 0; max-width: 74ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+  .chip { font-size: 11.5px; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); color: #d7dce6; }
+  .chip b { color: #fff; font-weight: 600; }
+  .chip .mono { font-family: var(--mono); font-size: 11px; }
+  .invariant { margin-top: 4px; font-size: 13px; color: #c7f9dd; background: rgba(78,172,95,.14); border: 1px solid rgba(78,172,95,.32); border-radius: 8px; padding: 10px 14px; }
+  .invariant .mono { font-family: var(--mono); color: #eafff3; }
+
+  section { background: var(--doc-sheet); border: 1px solid var(--doc-hair); border-radius: 14px; padding: 26px 28px; margin-bottom: 20px; }
+  .seclabel { display: flex; align-items: baseline; gap: 12px; margin: 0 0 6px; }
+  .seclabel .num { font-family: var(--mono); font-size: 12px; color: var(--doc-accent); font-weight: 600; letter-spacing: .04em; }
+  .seclabel h2 { margin: 0; font-size: 19px; font-weight: 640; letter-spacing: -.01em; }
+  .lede { color: var(--doc-muted); font-size: 14.5px; margin: 0 0 16px; max-width: 70ch; }
+  section p { color: #2d3646; font-size: 14.5px; max-width: 72ch; }
+  section p .mono, li .mono, td .mono, th .mono { font-family: var(--mono); font-size: 12.5px; background: var(--code-bg); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--doc-hair); }
+  .accent { color: var(--doc-accent); font-weight: 600; }
+
+  ul.spec { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  ul.spec > li { position: relative; padding-left: 20px; font-size: 14px; color: #2d3646; max-width: 74ch; }
+  ul.spec > li::before { content: ""; position: absolute; left: 3px; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: var(--doc-accent); }
+
+  .canvas { background: var(--doc-canvas); border: 1px solid var(--doc-hair); border-radius: 12px; padding: 20px; margin-top: 14px; background-image: radial-gradient(var(--doc-hair) 1px, transparent 1px); background-size: 18px 18px; }
+  .canvas.scroll { overflow-x: auto; }
+  .frame-cap { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--doc-faint); margin: 0 0 8px; font-weight: 600; }
+  .hint { font-size: 12.5px; color: var(--doc-faint); margin: 10px 2px 0; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .hint .k { font-family: var(--mono); font-size: 11px; background: #fff; border: 1px solid var(--doc-hair); border-radius: 4px; padding: 1px 6px; color: var(--doc-muted); }
+
+  /* ===================== PRODUCT CHROME ===================== */
+  /* desktop app shell */
+  .app { width: 860px; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--p-hair); box-shadow: 0 6px 20px rgba(16,24,40,.10); font-family: var(--sans); }
+  .topnav { display: flex; align-items: center; gap: 26px; padding: 0 22px; height: 58px; border-bottom: 1px solid var(--p-hair); }
+  .topnav .logo { display: block; }
+  .topnav .logo svg { height: 26px; width: auto; display: block; }
+  .navlinks { display: flex; gap: 22px; margin-left: 8px; }
+  .navlinks a { font-size: 13.5px; color: var(--p-muted); text-decoration: none; padding: 4px 0; border-bottom: 2px solid transparent; }
+  .navlinks a.active { color: var(--p-ink); font-weight: 600; border-bottom-color: var(--p-brand); }
+  .navlinks a.ecf { color: var(--p-link); }
+  .topnav .spacer { flex: 1; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #eef1f4; border: 1px solid var(--p-hair); display: inline-flex; align-items: center; justify-content: center; color: var(--p-muted); font-size: 12px; font-weight: 700; }
+
+  /* generous bottom room so the last row's popover (ECF) is never clipped by the frame */
+  .page { padding: 24px 24px 270px; background: #fff; }
+  .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .page-head h2 { margin: 0; font-size: 22px; font-weight: 650; color: var(--p-ink); }
+  .pstx-badge { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: linear-gradient(90deg,#206633,#4eac5f); padding: 3px 9px; border-radius: 6px; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+
+  .p-card { background: var(--p-card); border-radius: 12px; padding: 20px; border: 1px solid var(--p-hair); font-family: var(--sans); }
+  .p-title { font-size: 18px; font-weight: 500; color: var(--p-label); }
+  .p-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; }
+  .p-info { width: 15px; height: 15px; border-radius: 50%; border: 1.4px solid #c4c9d1; color: #98a2b3; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; cursor: help; }
+  .p-headline { font-size: 34px; font-weight: 600; color: #000; letter-spacing: -.01em; font-variant-numeric: tabular-nums; padding-top: 4px; }
+  .p-rule { border: 0; border-top: 1px solid var(--p-hair); margin: 14px 0 4px; }
+
+  /* top up / withdraw */
+  .p-btns { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 18px; }
+  .p-btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 500; border: 1px solid transparent; }
+  .p-btn svg { width: 16px; height: 16px; }
+  .p-btn--fill { background: var(--p-brand); color: #fff; }
+  .p-btn--ghost { background: #fff; border-color: var(--p-btn-ghost-border); color: var(--p-btn-ghost-text); }
+
+  /* breakdown rows */
+  .p-rows { display: flex; flex-direction: column; }
+  .p-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 11px; border: 0; background: transparent; border-radius: 8px; cursor: pointer; text-align: left; font-family: inherit; }
+  .p-row:hover { background: var(--p-hover); }
+  .p-row:disabled { cursor: default; }
+  .p-row:disabled:hover { background: transparent; }
+  /* zero bucket (e.g. no ECF investment): greyed out + inert, same as PSTX Open Orders / Withdrawals at 0 */
+  .p-row--muted .p-row__label, .p-row--muted .p-row__amt { color: #b8bcc4; }
+  .p-row__label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--p-muted); }
+  .p-row__amt { font-size: 13px; font-weight: 600; color: var(--p-ink); font-variant-numeric: tabular-nums; }
+  .p-chev { width: 11px; height: 11px; flex-shrink: 0; color: #98a2b3; transition: transform .18s ease; }
+  .p-row[aria-expanded="true"] .p-chev { transform: rotate(90deg); }
+  .p-new { font-size: 9.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 20px; background: var(--p-new-bg); color: var(--p-link); }
+
+  .p-anchor { position: relative; }
+  .p-pop { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid var(--p-hair); border-radius: 12px; box-shadow: 0 12px 32px rgba(16,24,40,.14); overflow: hidden; opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .16s ease, transform .16s ease; }
+  .p-pop.open { opacity: 1; transform: none; pointer-events: auto; }
+  .p-pop::before { content: ""; position: absolute; top: -6px; left: 24px; width: 11px; height: 11px; background: #fff; border-left: 1px solid var(--p-hair); border-top: 1px solid var(--p-hair); transform: rotate(45deg); }
+
+  /* shared drill-down body */
+  .dd-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
+  .dd-title { font-size: 14px; font-weight: 600; color: var(--p-ink); }
+  .dd-count { font-size: 11px; font-weight: 500; color: var(--p-muted); padding: 2px 10px; border-radius: 20px; background: var(--p-count-bg); white-space: nowrap; }
+  .dd-x { margin-left: auto; width: 30px; height: 30px; border: 1px solid var(--p-hair); border-radius: 8px; background: #fff; color: #667085; font-size: 18px; line-height: 1; cursor: pointer; flex-shrink: 0; }
+  .dd-list { display: flex; flex-direction: column; max-height: 260px; overflow-y: auto; }
+  .dd-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--p-hair); }
+  .dd-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .dd-primary { font-size: 14px; font-weight: 600; color: var(--p-ink); }
+  .dd-secondary { font-size: 11px; color: var(--p-muted); }
+  .dd-amt { font-size: 14px; font-weight: 600; color: var(--p-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dd-link { display: block; width: 100%; text-align: left; padding: 12px 16px; background: transparent; border: 0; border-top: 1px solid var(--p-hair); font-size: 13px; font-weight: 600; color: var(--p-link); cursor: pointer; font-family: inherit; }
+  .dd-link:hover { text-decoration: underline; }
+
+  /* ---------- mobile phone frame ---------- */
+  .phone { width: 330px; border: 9px solid #10161f; border-radius: 34px; background: #fff; overflow: hidden; position: relative; height: 640px; }
+  .phone__notch { height: 26px; background: #10161f; }
+  .phone__nav { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 50px; border-bottom: 1px solid var(--p-hair); }
+  .phone__nav .logo svg { height: 22px; width: auto; display: block; }
+  .phone__nav .spacer { flex: 1; }
+  .phone__nav .burger { width: 22px; color: var(--p-muted); }
+  .phone__scroll { padding: 16px 14px; overflow-y: auto; height: calc(100% - 76px); }
+  .phone .page-head { margin-bottom: 14px; }
+  .phone .page-head h2 { font-size: 18px; }
+  .phone .p-card { padding: 16px; }
+  .phone .p-card + .p-card { margin-top: 14px; }
+  .phone .p-title { font-size: 15px; }
+  .phone .p-headline { font-size: 27px; }
+
+  .sheet-backdrop { position: absolute; inset: 0; background: rgba(16,24,40,.45); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 40; }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 -6px 24px rgba(16,24,40,.18); overflow: hidden; transform: translateY(100%); transition: transform .24s cubic-bezier(.32,.72,0,1); z-index: 41; }
+  .sheet.open { transform: none; }
+  .sheet__grab { width: 40px; height: 4px; border-radius: 4px; background: #d0d5dd; margin: 10px auto 2px; }
+
+  /* redline / spec tables */
+  .tblwrap { overflow-x: auto; }
+  .legend, .tbl { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13.5px; }
+  .legend th, .legend td, .tbl th, .tbl td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--doc-hair); vertical-align: top; }
+  .legend th, .tbl th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--doc-faint); font-weight: 600; background: #fafbfc; }
+  .legend td:first-child { white-space: nowrap; font-weight: 600; color: var(--doc-ink); }
+  .legend .mono, .tbl td.mono, .tbl code { font-family: var(--mono); font-size: 12px; color: var(--doc-muted); }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,.12); vertical-align: -2px; margin-right: 8px; }
+
+  pre { background: #0f1729; color: #e6ebf4; border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; margin: 14px 0 0; }
+  pre .c { color: #7f8ba3; } pre .k { color: #7cc5ff; } pre .s { color: #9ff0c4; }
+
+  .ac { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+  .ac-item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--doc-hair); border-radius: 10px; background: #fafbfc; }
+  .ac-tick { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--p-new-bg); color: var(--doc-accent); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+  .ac-item h4 { margin: 0 0 3px; font-size: 13.5px; } .ac-item p { margin: 0; font-size: 13px; color: var(--doc-muted); }
+
+  .note { border-left: 3px solid var(--doc-accent); background: #f2faf5; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 13.5px; color: #234; margin-top: 14px; max-width: none; }
+  .note b { color: var(--doc-accent); }
+
+  .viewgrid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="doc">
+  <header class="mast">
+    <div class="wrap">
+      <div class="chips">
+        <span class="chip">Front-end build handoff</span>
+        <span class="chip"><b>Variant A</b> · anchored popover</span>
+        <span class="chip">PitchinCustomerWeb · <span class="mono">Angular 16</span></span>
+      </div>
+      <h1>PSTX Account — “ECF investment” line in Balance on Hold</h1>
+      <p class="sub">Make Balance on Hold transparent: add a third, drillable breakdown row for money held by <b style="color:#fff">Paid ECF pledges</b>, matching the two rows already shipped. Desktop &amp; mobile both specified below.</p>
+      <div class="chips">
+        <span class="chip">Screen: <b>PSTX Account</b> <span class="mono">/dashboard/pstx/account</span></span>
+        <span class="chip">Component: <b>Balance on Hold</b> card</span>
+        <span class="chip">Status: <b>Ready to build</b></span>
+      </div>
+      <div class="invariant"><b>Reconciliation invariant —</b> <span class="mono">PSTX Open Orders + Withdrawal requests + ECF investment = Balance on Hold</span>. Any drift is a defect.</div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <!-- 01 -->
+    <section>
+      <div class="seclabel"><span class="num">01</span><h2>What’s changing</h2></div>
+      <p class="lede">Today the Balance-on-Hold card shows a headline held amount plus two drillable rows — <b>PSTX Open Orders</b> and <b>Withdrawal requests</b>. This adds a third row, <b>ECF investment</b>, that behaves identically. Its subtotal is the sum of the investor’s ECF pledges in <span class="accent">Paid</span> status. Expanding it lists each pledge and links to the ECF Investments tab, pre-filtered to Paid.</p>
+      <ul class="spec">
+        <li>New row copy <b>“ECF investment”</b>, tagged <b>NEW</b> (remove tag after launch), positioned <b>third</b>.</li>
+        <li>Same drill-down as existing rows: <b>desktop → anchored popover</b>, <b>mobile → bottom sheet</b>.</li>
+        <li>A zero-value bucket is <b>inert</b> (no chevron, not clickable) — identical to the shipped rows.</li>
+        <li>The rest of the screen (top nav, page title + PSTX badge, Account balance card with Top&nbsp;Up / Withdraw) is <b>unchanged</b> — shown for context.</li>
+      </ul>
+    </section>
+
+    <!-- 02 desktop -->
+    <section>
+      <div class="seclabel"><span class="num">02</span><h2>Desktop view (interactive)</h2></div>
+      <p class="lede">Full screen at desktop width. Click a breakdown row to open its drill-down popover — one open at a time; click outside, the × or <span class="mono">Esc</span> to close.</p>
+      <div class="canvas scroll">
+        <p class="frame-cap">PSTX Account · ≥ 768px</p>
+        <div id="desktopApp"></div>
+      </div>
+      <div class="hint"><span class="k">click</span> the ECF investment row to open the popover · scroll horizontally if the frame is clipped</div>
+    </section>
+
+    <!-- 03 mobile -->
+    <section>
+      <div class="seclabel"><span class="num">03</span><h2>Mobile view (interactive)</h2></div>
+      <p class="lede">Same screen stacked for mobile. The drill-down is a <b>bottom sheet</b> (not a popover) below <span class="mono">768px</span>. Tap the ECF investment row to open it; tap the backdrop, the × or the grab-handle area to dismiss.</p>
+      <div class="canvas" style="display:flex;justify-content:center;">
+        <div>
+          <p class="frame-cap" style="text-align:center;">PSTX Account · &lt; 768px</p>
+          <div id="mobileApp"></div>
+        </div>
+      </div>
+      <div class="hint" style="justify-content:center;"><span class="k">tap</span> the ECF investment row → bottom sheet slides up</div>
+    </section>
+
+    <!-- 04 states -->
+    <section>
+      <div class="seclabel"><span class="num">04</span><h2>Edge states</h2></div>
+      <p class="lede">One edge state to handle: the investor has no ECF pledges on hold.</p>
+      <div class="canvas scroll">
+        <div style="display:flex;gap:22px;align-items:flex-start;min-width:min-content;">
+          <div>
+            <p class="frame-cap">No ECF investment (amount 0) → greyed, disabled, no popover</p>
+            <div id="stEmpty"></div>
+          </div>
+        </div>
+      </div>
+      <div class="note"><b>No ECF investment → disable the row.</b> When <span class="mono">ecfInvestmentHoldAmount</span> is <span class="mono">0</span> (investor has no Paid pledges on hold), the row is <b>greyed out and not clickable</b>: render the <span class="mono">&lt;button&gt;</span> as <span class="mono">[disabled]</span> — label + amount greyed (<span class="mono">#B8BCC4</span>), no chevron, no hover, and <b>no popover / bottom sheet appears</b>. Identical to how PSTX Open Orders and Withdrawal requests already render at 0.</div>
+    </section>
+
+    <!-- 05 anatomy -->
+    <section>
+      <div class="seclabel"><span class="num">05</span><h2>Anatomy &amp; redline</h2></div>
+      <p class="lede">Exact spec for the ECF row and its popover. Mirror these values.</p>
+      <div class="tblwrap"><table class="legend"><thead><tr><th>Part</th><th>Spec</th></tr></thead><tbody>
+        <tr><td>Row container</td><td><span class="mono">&lt;button&gt;</span> · flex space-between · padding <span class="mono">8px 11px</span> · radius <span class="mono">8px</span> · hover bg <span class="mono">#F9FAFB</span> · disabled when inert</td></tr>
+        <tr><td>Chevron</td><td><span class="mono">11px</span>, <span class="mono">#98A2B3</span> · rotates <span class="mono">0°→90°</span> on open · hidden when inert</td></tr>
+        <tr><td>Row label</td><td>“ECF investment” · <span class="mono">13px / 400</span> · <span class="mono">#6A6A6A</span> · gap to chevron <span class="mono">10px</span></td></tr>
+        <tr><td>NEW badge</td><td><span class="mono">9.5px / 700</span> uppercase · text <span class="mono">#027A48</span> · bg <span class="mono">#ECFDF3</span> · radius <span class="mono">20px</span></td></tr>
+        <tr><td>Row subtotal</td><td>right-aligned · <span class="mono">13px / 600</span> · <span class="mono">#101828</span> · <span class="mono">tabular-nums</span></td></tr>
+        <tr><td>Popover</td><td>bg <span class="mono">#fff</span> · border <span class="mono">1px #EAECF0</span> · radius <span class="mono">12px</span> · shadow <span class="mono">0 12px 32px rgba(16,24,40,.14)</span> · placement <span class="mono">bottom-start</span> · in <span class="mono">body</span></td></tr>
+        <tr><td>Popover title</td><td>“ECF investments on hold” · <span class="mono">14px / 600</span></td></tr>
+        <tr><td>Count badge</td><td>“3 investments” · <span class="mono">11px / 500</span> · <span class="mono">#6A6A6A</span> on <span class="mono">#F6F6F6</span></td></tr>
+        <tr><td>Close (×)</td><td><span class="mono">30×30</span> · border <span class="mono">1px #EAECF0</span> · radius <span class="mono">8px</span></td></tr>
+        <tr><td>Record primary</td><td>Campaign name · <span class="mono">14px / 600</span> · <span class="mono">#101828</span></td></tr>
+        <tr><td>Record secondary</td><td>“Paid · &lt;date&gt;” · <span class="mono">11px</span> · <span class="mono">#6A6A6A</span></td></tr>
+        <tr><td>Record amount</td><td>right · <span class="mono">14px / 600</span> · row divider <span class="mono">1px #EAECF0</span></td></tr>
+        <tr><td>Footer link</td><td>“View all in ECF Investments →” · <span class="mono">13px / 600</span> · <span class="mono">#027A48</span> · underline on hover</td></tr>
+        <tr><td>Mobile sheet</td><td>same body · radius <span class="mono">16px 16px 0 0</span> · grab-handle <span class="mono">40×4</span> <span class="mono">#D0D5DD</span> · backdrop <span class="mono">rgba(16,24,40,.45)</span></td></tr>
+      </tbody></table></div>
+    </section>
+
+    <!-- 06 tokens -->
+    <section>
+      <div class="seclabel"><span class="num">06</span><h2>Design tokens</h2></div>
+      <p class="lede">Read from the existing PSTX Account styles — do not invent new values.</p>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>Token</th><th>Value</th><th>Used for</th></tr></thead><tbody>
+        <tr><td>Ink</td><td class="mono"><span class="swatch" style="background:#101828"></span>#101828</td><td>Amounts, record primary, popover title</td></tr>
+        <tr><td>Muted</td><td class="mono"><span class="swatch" style="background:#6a6a6a"></span>#6A6A6A</td><td>Row labels, secondary, count badge</td></tr>
+        <tr><td>Label grey</td><td class="mono"><span class="swatch" style="background:#7f7f7f"></span>#7F7F7F</td><td>Card titles</td></tr>
+        <tr><td>Hairline</td><td class="mono"><span class="swatch" style="background:#eaecf0"></span>#EAECF0</td><td>Dividers, borders</td></tr>
+        <tr><td>Hover</td><td class="mono"><span class="swatch" style="background:#f9fafb"></span>#F9FAFB</td><td>Row hover</td></tr>
+        <tr><td>Brand green</td><td class="mono"><span class="swatch" style="background:#4eac5f"></span>#4EAC5F</td><td>Top Up button, active nav underline</td></tr>
+        <tr><td>Link / deep green</td><td class="mono"><span class="swatch" style="background:#027a48"></span>#027A48 · <span class="swatch" style="background:#206633"></span>#206633</td><td>Footer link, NEW badge, logo/badge</td></tr>
+        <tr><td>NEW badge bg</td><td class="mono"><span class="swatch" style="background:#ecfdf3"></span>#ECFDF3</td><td>NEW badge fill</td></tr>
+        <tr><td>Ghost btn</td><td class="mono"><span class="swatch" style="background:#d0d5dd"></span>#D0D5DD border · <span class="swatch" style="background:#344054"></span>#344054 text</td><td>Withdraw button</td></tr>
+        <tr><td>Radius</td><td class="mono">8px rows/btns · 12px card/popover</td><td>—</td></tr>
+        <tr><td>Money</td><td class="mono">1.2–2 · tabular-nums</td><td>All amounts (<span class="mono">numberSuffix</span> pipe)</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <!-- 07 interaction -->
+    <section>
+      <div class="seclabel"><span class="num">07</span><h2>Interaction &amp; responsive</h2></div>
+      <ul class="spec">
+        <li><b>Drillable only when non-zero.</b> If ECF hold = <span class="mono">0</span>: no chevron, not focusable/clickable, no hover.</li>
+        <li><b>One open at a time.</b> Opening a bucket closes any other open bucket.</li>
+        <li><b>Re-click toggles closed</b> (no re-fetch). Records may be fetched on first open and cached.</li>
+        <li><b>Dismiss:</b> outside click, ×, or <span class="mono">Esc</span>. Mobile: backdrop tap / swipe-down.</li>
+        <li><b>Breakpoint:</b> <span class="mono">window.innerWidth &lt; 768</span> → bottom sheet; else → anchored popover.</li>
+        <li><b>Placement:</b> <span class="mono">bottom-start</span>, container <span class="mono">body</span>, auto-flip up on overflow.</li>
+        <li><b>List overflow:</b> record list caps <span class="mono">max-height 260px</span> and scrolls internally.</li>
+        <li><b>A11y:</b> row is a real <span class="mono">&lt;button&gt;</span> with <span class="mono">aria-expanded</span>; visible focus ring; × has aria-label.</li>
+      </ul>
+    </section>
+
+    <!-- 08 data -->
+    <section>
+      <div class="seclabel"><span class="num">08</span><h2>Data contract &amp; navigation</h2></div>
+      <p class="lede">The UI binds to two new pieces on the investor wallet-details response (backend slice — AC1). Shapes are the contract; confirm names with the API team.</p>
+      <pre><span class="c">// Extend the investor wallet-details response</span>
+<span class="k">interface</span> WalletDetails {
+  balance: number;
+  pendingAmount: number;                <span class="c">// headline "Balance on Hold"</span>
+  openOrdersHoldAmount: number;         <span class="c">// existing — PSTX Open Orders</span>
+  withdrawalRequestsHoldAmount: number; <span class="c">// existing — Withdrawal requests</span>
+  ecfInvestmentHoldAmount: number;      <span class="c">// NEW — ECF investment subtotal</span>
+}
+
+<span class="c">// Drill-down records (fetched on first open, like heldOpenOrders)</span>
+<span class="k">interface</span> HeldEcfInvestment {
+  campaignId: number;      <span class="c">// optional deep link to the campaign</span>
+  companyName: string;     <span class="c">// → record primary</span>
+  paidAt: string;          <span class="c">// ISO date → "Paid · {{date}}"</span>
+  amount: number;          <span class="c">// → record amount</span>
+}</pre>
+      <p style="margin-top:16px"><b>“View all in ECF Investments” target</b> — resolved from the repo:</p>
+      <pre>router.navigate([<span class="s">'/dashboard/pledges'</span>], { queryParams: { payment: <span class="s">'Paid'</span> } });
+<span class="c">// EcfInvestmentsPreviewComponent reads queryParams['payment'];</span>
+<span class="c">// accepts the enum NAME or number. InvestmentStatus.Paid = 2 → ?payment=Paid | 2</span></pre>
+      <div class="note"><b>Reconciliation source of truth:</b> sum of drill-down record amounts == <span class="mono">ecfInvestmentHoldAmount</span>, and the three subtotals == <span class="mono">pendingAmount</span>. Verify against real data, not mocks.</div>
+    </section>
+
+    <!-- 09 copy -->
+    <section>
+      <div class="seclabel"><span class="num">09</span><h2>Copy &amp; i18n</h2></div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>Suggested key</th><th>English string</th></tr></thead><tbody>
+        <tr><td class="mono">mysec.ecfInvestment</td><td>ECF investment</td></tr>
+        <tr><td class="mono">mysec.ecfInvestmentsOnHold</td><td>ECF investments on hold</td></tr>
+        <tr><td class="mono">mysec.investmentsCount</td><td>{{count}} investment(s)</td></tr>
+        <tr><td class="mono">mysec.viewAllInEcfInvestments</td><td>View all in ECF Investments</td></tr>
+        <tr><td class="mono">common.new</td><td>New</td></tr>
+      </tbody></table></div>
+      <p style="margin-top:14px">Update the info-tooltip copy to mention ECF: <i>“Balance that cannot be withdrawn due to PSTX Open Orders, withdrawal requests, or ECF investments.”</i> Ship all three locales: <span class="mono">en-US</span>, <span class="mono">ms-MY</span>, <span class="mono">zh-CN</span>.</p>
+    </section>
+
+    <!-- 10 AC -->
+    <section>
+      <div class="seclabel"><span class="num">10</span><h2>Acceptance criteria</h2></div>
+      <div class="ac">
+        <div class="ac-item"><span class="ac-tick">1</span><div><h4>Typed On-Hold breakdown incl. ECF</h4><p>Wallet-details API returns <span class="mono">ecfInvestmentHoldAmount</span> + drill-down records (campaign, amount, Paid date). <i>Backend slice.</i></p></div></div>
+        <div class="ac-item"><span class="ac-tick">2</span><div><h4>ECF row renders &amp; drills down</h4><p>PSTX Account shows the ECF row; expanding lists each Paid pledge with a “View all in ECF Investments” action → <span class="mono">/dashboard/pledges?payment=Paid</span>.</p></div></div>
+        <div class="ac-item"><span class="ac-tick">3</span><div><h4>Components reconcile</h4><p>PSTX Open Orders + Withdrawal requests + ECF investment = displayed Balance on Hold, always.</p></div></div>
+      </div>
+    </section>
+
+    <!-- 11 refs -->
+    <section>
+      <div class="seclabel"><span class="num">11</span><h2>Build references (pattern to mirror)</h2></div>
+      <p class="lede">This clones the two shipped rows — the ECF row is a third instance of the same components.</p>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>File</th><th>Role</th></tr></thead><tbody>
+        <tr><td class="mono">pages/mysec/wallet/wallet.component.html</td><td>Balance-on-Hold card + the two existing rows (add a third)</td></tr>
+        <tr><td class="mono">pages/mysec/wallet/wallet.component.ts</td><td>Responsive opener, <span class="mono">isBucketDrillable()</span>, <span class="mono">buildXBreakdown()</span> → add <span class="mono">buildEcfInvestmentBreakdown()</span> + <span class="mono">openEcfBreakdown()</span></td></tr>
+        <tr><td class="mono">…/wallet/hold-breakdown/hold-breakdown-content.component.*</td><td>Shared drill-down body — reused as-is</td></tr>
+        <tr><td class="mono">…/wallet/hold-breakdown/hold-breakdown-sheet.component.*</td><td>Mobile bottom-sheet host — reused as-is</td></tr>
+        <tr><td class="mono">…/wallet/hold-breakdown/hold-breakdown.model.ts</td><td><span class="mono">HoldBreakdownData</span> view-model — the ECF bucket maps onto it</td></tr>
+        <tr><td class="mono">pages/my-profile/my-investments/ecf-preview/…</td><td>The “View all” destination (ECF Investments tab)</td></tr>
+      </tbody></table></div>
+      <div class="note"><b>Filtered-navigation hook:</b> the shared body supports a <span class="mono">linkAction</span> callback (Withdrawal-requests already uses it). Give the ECF bucket a <span class="mono">linkAction</span> running the <span class="mono">router.navigate(['/dashboard/pledges'], { queryParams: { payment: 'Paid' } })</span> above — the default <span class="mono">linkCommands</span> path does not carry query params.</div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  var RM = function (n) { return "RM " + n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var LOGO = '<svg viewBox="0 0 307 190" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#lg)"><path d="M264.594 143.67C262.279 143.67 259.415 143.285 257.791 140.296L246.318 119.398V139.456C246.318 142.352 243.057 143.67 240.027 143.67C236.997 143.67 233.735 142.352 233.735 139.456V95.5063C233.735 92.597 236.897 91.293 240.027 91.293C244.155 91.293 245.979 91.7996 248.775 97.173L258.306 115.35V95.4356C258.306 92.921 260.775 91.293 264.594 91.293C268.417 91.293 270.887 92.921 270.887 95.4356V139.456C270.887 142.352 267.625 143.67 264.594 143.67Z" fill="#206633"/><path d="M297.479 41.2173H35.438C31.9754 41.2173 29.1687 38.4093 29.1687 34.948C29.1687 31.4853 31.9754 28.6786 35.438 28.6786H297.479C300.941 28.6786 303.749 31.4853 303.749 34.948C303.749 38.4093 300.941 41.2173 297.479 41.2173Z" fill="#206633"/><path d="M94.7291 104.358C91.1691 104.358 88.1625 101.666 88.1625 98.483C88.1625 95.2817 91.1078 92.675 94.7291 92.675C98.3131 92.675 101.229 95.2817 101.229 98.483C101.229 101.666 98.2518 104.358 94.7291 104.358ZM94.7291 143.67C91.2998 143.67 88.5078 141.779 88.5078 139.455V113.086C88.5078 110.646 91.0665 108.94 94.7291 108.94C98.3731 108.94 101.02 110.683 101.02 113.086V139.455C101.02 141.74 98.1385 143.67 94.7291 143.67Z" fill="#C01E24"/><path d="M64.897 119.654C62.849 119.654 60.7343 121.26 60.7343 123.952V129.696C60.7343 130.436 62.5623 133.234 65.0316 133.234C67.169 133.234 69.2636 131.037 69.2636 128.797V123.952C69.2636 121.924 67.397 119.654 64.897 119.654ZM54.3743 158.69C50.9823 158.69 48.2223 156.797 48.2223 154.474V113.085C48.2223 110.682 50.753 108.94 54.237 108.94C57.229 108.94 59.4303 110.245 59.933 112.206C61.8263 110.244 64.7663 108.526 68.4956 108.526C75.9423 108.526 81.7756 115.302 81.7756 123.952V128.797C81.7756 137.088 75.7303 144.362 68.8423 144.362C65.5303 144.362 62.621 142.78 60.7343 140.769V154.474C60.7343 156.758 57.821 158.69 54.3743 158.69" fill="#C01E24"/><path d="M123.177 143.67C113.585 143.67 108.72 139.434 108.72 131.082V98.7583C108.72 96.281 111.939 94.6143 114.944 94.6143C118.036 94.6143 121.235 96.165 121.235 98.7583V108.94H128.16C130.473 108.94 131.683 111.304 131.683 113.638C131.683 116.406 130.233 118.34 128.16 118.34H121.235V131.082C121.235 132.525 121.463 132.889 123.177 132.889H126.153C129.905 132.889 131.613 135.685 131.613 138.281C131.613 140.877 129.905 143.67 126.153 143.67H123.177Z" fill="#C01E24"/><path d="M152.598 144.362C142.048 144.362 135.996 138.69 135.996 128.798V124.092C135.996 114.345 142.152 108.526 152.461 108.526C159.52 108.526 165.049 111.442 165.049 115.164C165.049 117.612 163.036 121.314 160.005 121.314C159.15 121.314 158.428 120.993 157.661 120.653C156.606 120.184 155.412 119.654 153.36 119.654C149.958 119.654 148.508 120.982 148.508 124.092V128.798C148.508 131.95 149.933 133.234 153.429 133.234C155.401 133.234 156.502 132.666 157.473 132.164C158.265 131.753 159.013 131.365 160.005 131.365C163.52 131.365 165.465 134.921 165.465 137.38C165.465 141.164 159.572 144.362 152.598 144.362Z" fill="#C01E24"/><path d="M197.867 143.67C194.775 143.67 191.644 142.221 191.644 139.456V123.952C191.644 121.744 189.657 119.654 187.552 119.654C185.712 119.654 183.808 121.262 183.808 123.952V139.456C183.808 141.701 180.868 143.67 177.517 143.67C174.088 143.67 171.296 141.78 171.296 139.456V94.2583C171.296 91.8196 173.855 90.1143 177.517 90.1143C181.103 90.1143 183.808 91.8956 183.808 94.2583V111.808C185.483 110.01 188.068 108.526 191.497 108.526C198.359 108.526 204.157 115.592 204.157 123.952V139.456C204.157 142.352 200.896 143.67 197.867 143.67Z" fill="#C01E24"/><path d="M218.29 143.67C215.261 143.67 211.999 142.352 211.999 139.456V95.4356C211.999 92.921 214.469 91.293 218.29 91.293C222.111 91.293 224.581 92.921 224.581 95.4356V139.456C224.581 142.352 221.319 143.67 218.29 143.67Z" fill="#206633"/><path d="M38.4517 70.724C33.0224 70.724 19.7051 69.752 10.1944 60.9733C3.51708 54.808 0.105076 46.28 0.0504093 35.62C-0.112257 33.1827 -0.378924 21.6533 8.08774 12.2333C15.3851 4.11466 26.7371 0 41.8291 0H300.614C304.306 0 307.298 2.992 307.298 6.684C307.298 10.3747 304.306 13.368 300.614 13.368H41.8291C30.7784 13.368 22.8104 15.9533 18.1397 21.0493C12.7717 26.9107 13.3797 34.632 13.3864 34.7093C13.4037 34.904 13.4184 35.1653 13.4184 35.36C13.4184 42.3533 15.3317 47.5187 19.2637 51.1507C26.8451 58.1467 39.6877 57.332 39.8091 57.3213C39.9864 57.3067 40.1651 57.3 40.3424 57.3H300.614C304.306 57.3 307.298 60.2933 307.298 63.984C307.298 67.676 304.306 70.668 300.614 70.668H40.5597C40.1637 70.692 39.4371 70.724 38.4517 70.724Z" fill="#C01E24"/><path d="M300.615 190.032H79.624C50.1893 190.032 28.324 182.338 14.6373 167.162C-1.02266 149.802 -0.099995 128.84 0.152005 125.579V36.2898C0.152005 32.5978 3.14401 29.6058 6.83601 29.6058C10.5267 29.6058 13.52 32.5978 13.52 36.2898V125.862C13.52 126.091 13.508 126.32 13.4853 126.548C13.4707 126.696 11.9733 144.38 24.696 158.354C35.7587 170.504 54.2387 176.664 79.624 176.664H293.931V66.7405C293.931 63.0498 296.923 60.0565 300.615 60.0565C304.307 60.0565 307.299 63.0498 307.299 66.7405V183.348C307.299 187.04 304.307 190.032 300.615 190.032Z" fill="#C01E24"/></g><defs><clipPath id="lg"><rect width="307" height="190" fill="white"/></clipPath></defs></svg>';
+  var CHEV = '<svg class="p-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>';
+  var IC_TOPUP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+  var IC_WD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>';
+
+  var BUCKETS = [
+    { key: "pstx", label: "PSTX Open Orders", isNew: false, title: "PSTX Open Orders on hold", cta: "View all on PSTX Orders", unit: "orders",
+      items: [ { primary: "MYTECH", secondary: "Buy order · 02 Jul 2026", amount: 1030 }, { primary: "AGROFRESH", secondary: "Buy order · 30 Jun 2026", amount: 500 } ] },
+    { key: "wd", label: "Withdrawal requests", isNew: false, title: "Withdrawal requests on hold", cta: "View withdrawal requests", unit: "requests",
+      items: [ { primary: "WD-20260708", secondary: "Requested 08 Jul 2026 · Pending", amount: 250 } ] },
+    { key: "ecf", label: "ECF investment", isNew: true, title: "ECF investments on hold", cta: "View all in ECF Investments", unit: "investments",
+      items: [ { primary: "GreenTech Renewables Bhd", secondary: "Paid · 02 Jul 2026", amount: 1000 }, { primary: "Kombucha Co Sdn Bhd", secondary: "Paid · 28 Jun 2026", amount: 500 }, { primary: "UrbanFarm Ventures", secondary: "Paid · 15 Jun 2026", amount: 500 } ] }
+  ];
+  var sub = function (b) { return b.items.reduce(function (s, i) { return s + i.amount; }, 0); };
+  var TOTAL = BUCKETS.reduce(function (s, b) { return s + sub(b); }, 0);
+
+  var el = function (t, c, h) { var e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+
+  function drilldown(b) {
+    var w = el("div");
+    var head = el("div", "dd-head");
+    head.appendChild(el("span", "dd-title", b.title));
+    head.appendChild(el("span", "dd-count", b.items.length + " " + b.unit));
+    var x = el("button", "dd-x", "&times;"); x.type = "button"; x.setAttribute("aria-label", "Close"); x.dataset.close = "1";
+    head.appendChild(x); w.appendChild(head);
+    var list = el("div", "dd-list");
+    b.items.forEach(function (it) {
+      var r = el("div", "dd-row");
+      var l = el("div", "dd-left");
+      l.appendChild(el("span", "dd-primary", it.primary));
+      l.appendChild(el("span", "dd-secondary", it.secondary));
+      r.appendChild(l); r.appendChild(el("span", "dd-amt", RM(it.amount)));
+      list.appendChild(r);
+    });
+    w.appendChild(list);
+    var link = el("button", "dd-link", b.cta + " &rarr;"); link.type = "button";
+    w.appendChild(link);
+    return w;
+  }
+
+  // Account balance card with Top Up / Withdraw
+  function accountCard() {
+    var c = el("div", "p-card");
+    c.appendChild(el("div", "p-title", "Account balance"));
+    c.appendChild(el("div", "p-headline", RM(3250)));
+    var btns = el("div", "p-btns");
+    var top = el("div", "p-btn p-btn--fill", IC_TOPUP + "<span>Top Up</span>");
+    var wd = el("div", "p-btn p-btn--ghost", IC_WD + "<span>Withdraw</span>");
+    btns.appendChild(top); btns.appendChild(wd);
+    c.appendChild(btns);
+    return c;
+  }
+
+  // Balance on Hold card. opts: { interactive, mobile, zeroEcf }
+  function holdCard(opts) {
+    opts = opts || {};
+    var card = el("div", "p-card");
+    var head = el("div", "p-head");
+    head.appendChild(el("span", "p-title", "Balance on Hold"));
+    head.appendChild(el("span", "p-info", "i"));
+    card.appendChild(head);
+    var total = opts.zeroEcf ? (TOTAL - sub(BUCKETS[2])) : TOTAL;
+    card.appendChild(el("div", "p-headline", RM(total)));
+    card.appendChild(el("hr", "p-rule"));
+    var rows = el("div", "p-rows");
+    BUCKETS.forEach(function (b) {
+      var amount = (opts.zeroEcf && b.key === "ecf") ? 0 : sub(b);
+      var drillable = amount > 0;
+      var anchor = el("div", "p-anchor");
+      var btn = el("button", "p-row"); btn.type = "button"; btn.disabled = !drillable;
+      if (!drillable) btn.classList.add("p-row--muted");
+      btn.setAttribute("aria-expanded", "false");
+      var label = el("span", "p-row__label");
+      label.innerHTML = (drillable ? CHEV : '<span style="width:11px;flex-shrink:0"></span>') + '<span>' + b.label + '</span>';
+      if (b.isNew) label.appendChild(el("span", "p-new", "New"));
+      btn.appendChild(label);
+      btn.appendChild(el("span", "p-row__amt", RM(amount)));
+      anchor.appendChild(btn);
+
+      if (drillable && !opts.mobile) {
+        var pop = el("div", "p-pop");
+        pop.appendChild(drilldown(b));
+        anchor.appendChild(pop);
+        if (opts.interactive) {
+          btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var isOpen = pop.classList.contains("open");
+            rows.querySelectorAll(".p-pop.open").forEach(function (p) { p.classList.remove("open"); });
+            rows.querySelectorAll('.p-row[aria-expanded="true"]').forEach(function (r) { r.setAttribute("aria-expanded", "false"); });
+            if (!isOpen) { pop.classList.add("open"); btn.setAttribute("aria-expanded", "true"); }
+          });
+          pop.addEventListener("click", function (e) { e.stopPropagation(); if (e.target.dataset && e.target.dataset.close) { pop.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); } });
+        }
+      } else if (drillable && opts.mobile && opts.interactive) {
+        btn.addEventListener("click", function (e) { e.stopPropagation(); opts.onMobileOpen(b); });
+      }
+      rows.appendChild(anchor);
+    });
+    card.appendChild(rows);
+    return { card: card, rows: rows };
+  }
+
+  function topnav() {
+    var n = el("div", "topnav");
+    var logo = el("span", "logo"); logo.innerHTML = LOGO; n.appendChild(logo);
+    var links = el("div", "navlinks");
+    links.innerHTML = '<a href="#">Portfolio</a><a href="#" class="ecf">ECF Investments</a><a href="#" class="active">PSTX Account</a>';
+    n.appendChild(links);
+    n.appendChild(el("span", "spacer"));
+    n.appendChild(el("span", "avatar", "IN"));
+    return n;
+  }
+  function pageHead(mobile) {
+    var h = el("div", "page-head");
+    h.appendChild(el("h2", null, "PSTX Account"));
+    h.appendChild(el("span", "pstx-badge", "PSTX"));
+    return h;
+  }
+
+  /* ---- 02 Desktop ---- */
+  (function () {
+    var app = el("div", "app");
+    app.appendChild(topnav());
+    var page = el("div", "page");
+    page.appendChild(pageHead(false));
+    var cards = el("div", "cards");
+    cards.appendChild(accountCard());
+    var hc = holdCard({ interactive: true });
+    cards.appendChild(hc.card);
+    page.appendChild(cards);
+    app.appendChild(page);
+    document.getElementById("desktopApp").appendChild(app);
+    document.addEventListener("click", function () {
+      hc.rows.querySelectorAll(".p-pop.open").forEach(function (p) { p.classList.remove("open"); });
+      hc.rows.querySelectorAll('.p-row[aria-expanded="true"]').forEach(function (r) { r.setAttribute("aria-expanded", "false"); });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        hc.rows.querySelectorAll(".p-pop.open").forEach(function (p) { p.classList.remove("open"); });
+        hc.rows.querySelectorAll('.p-row[aria-expanded="true"]').forEach(function (r) { r.setAttribute("aria-expanded", "false"); });
+      }
+    });
+  })();
+
+  /* ---- 03 Mobile ---- */
+  (function () {
+    var phone = el("div", "phone");
+    phone.appendChild(el("div", "phone__notch"));
+    var nav = el("div", "phone__nav");
+    var logo = el("span", "logo"); logo.innerHTML = LOGO; nav.appendChild(logo);
+    nav.appendChild(el("span", "spacer"));
+    nav.innerHTML += '<svg class="burger" viewBox="0 0 24 24" fill="none" stroke="#6a6a6a" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+    phone.appendChild(nav);
+
+    var backdrop = el("div", "sheet-backdrop");
+    var sheet = el("div", "sheet");
+    function openSheet(b) {
+      sheet.innerHTML = "";
+      sheet.appendChild(el("div", "sheet__grab"));
+      var body = drilldown(b);
+      sheet.appendChild(body);
+      body.addEventListener("click", function (e) { if (e.target.dataset && e.target.dataset.close) closeSheet(); });
+      backdrop.classList.add("open"); sheet.classList.add("open");
+    }
+    function closeSheet() { backdrop.classList.remove("open"); sheet.classList.remove("open"); }
+    backdrop.addEventListener("click", closeSheet);
+
+    var scroll = el("div", "phone__scroll");
+    scroll.appendChild(pageHead(true));
+    scroll.appendChild(accountCard());
+    var hc = holdCard({ interactive: true, mobile: true, onMobileOpen: openSheet });
+    scroll.appendChild(hc.card);
+    phone.appendChild(scroll);
+    phone.appendChild(backdrop);
+    phone.appendChild(sheet);
+    document.getElementById("mobileApp").appendChild(phone);
+  })();
+
+  /* ---- 04 edge state: no ECF investment ---- */
+  (function () {
+    var zero = el("div"); zero.style.width = "360px";
+    zero.appendChild(holdCard({ zeroEcf: true }).card);
+    document.getElementById("stEmpty").appendChild(zero);
+  })();
+})();
+</script>

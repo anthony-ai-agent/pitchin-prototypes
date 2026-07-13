@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>pitchIN — Prototype Gallery</title>
+<style>
+  :root {
+    --brand: #e2231a;
+    --brand-dark: #b91c15;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --ink: #1a1d21;
+    --muted: #6b7280;
+    --border: #e3e6ea;
+    --tab-inactive: #5b6470;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --ink: #e8eaed; --muted: #9aa4b2;
+      --border: #2a3038; --tab-inactive: #9aa4b2;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--ink);
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  header {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .logo {
+    font-weight: 800; font-size: 18px; letter-spacing: -.3px;
+    color: var(--brand); display: flex; align-items: center; gap: 8px;
+  }
+  .logo .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand); }
+  .subtitle { color: var(--muted); font-size: 13px; }
+  header .spacer { flex: 1; }
+  .repo-note { font-size: 12px; color: var(--muted); }
+
+  nav.tabs {
+    display: flex; gap: 4px; padding: 0 12px; background: var(--panel);
+    border-bottom: 1px solid var(--border); overflow-x: auto; flex-wrap: nowrap;
+  }
+  nav.tabs button {
+    appearance: none; border: none; background: none; cursor: pointer;
+    padding: 12px 16px; font-size: 13.5px; font-weight: 600; color: var(--tab-inactive);
+    border-bottom: 2.5px solid transparent; white-space: nowrap; font-family: inherit;
+    transition: color .12s, border-color .12s;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button[aria-selected="true"] { color: var(--brand); border-bottom-color: var(--brand); }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+    background: var(--bg); border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .toolbar .feature-title { font-weight: 700; font-size: 14px; }
+  .toolbar .feature-desc { color: var(--muted); font-size: 12.5px; }
+  .toolbar .spacer { flex: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    font-size: 12.5px; font-weight: 600; padding: 7px 13px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--panel); color: var(--ink);
+    cursor: pointer; font-family: inherit; transition: background .12s, border-color .12s;
+  }
+  .btn:hover { border-color: var(--brand); color: var(--brand); }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .btn.primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); color: #fff; }
+
+  .stage { flex: 1; position: relative; background: var(--bg); }
+  .stage iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff;
+  }
+  footer { padding: 8px 20px; font-size: 11.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo"><span class="dot"></span>pitchIN Prototypes</div>
+    <span class="subtitle">Throwaway UI prototypes for design &amp; dev hand-off</span>
+    <span class="spacer"></span>
+    <span class="repo-note">Each feature is a standalone HTML file — use “Export as HTML”.</span>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+
+  <div class="toolbar">
+    <div>
+      <div class="feature-title" id="ftitle"></div>
+      <div class="feature-desc" id="fdesc"></div>
+    </div>
+    <span class="spacer"></span>
+    <a class="btn" id="openNew" target="_blank" rel="noopener">↗ Open full screen</a>
+    <a class="btn primary" id="download" download>⬇ Export as HTML</a>
+  </div>
+
+  <div class="stage">
+    <iframe id="frame" title="Prototype preview"></iframe>
+  </div>
+
+  <footer>pitchIN — internal prototype gallery. Prototypes are illustrative; data shown is sample/dummy.</footer>
+
+<script>
+  const FEATURES = [
+    { id: "ca-investor",  label: "Corporate Actions · Investor", file: "features/corporate-actions-investor.html",
+      title: "Corporate Actions — Investor view", desc: "How investors see & respond to corporate actions." },
+    { id: "ca-admin",     label: "Corporate Actions · Admin", file: "features/corporate-actions-admin.html",
+      title: "Corporate Actions — Admin view", desc: "Back-office management of corporate actions." },
+    { id: "wallet",       label: "ECF Checkout · Wallet", file: "features/ecf-checkout-wallet.html",
+      title: "ECF Checkout — Pay with Wallet", desc: "Full wallet-payment checkout flow." },
+    { id: "pstx-txns",    label: "PSTX · Transaction History", file: "features/pstx-transaction-history.html",
+      title: "PSTX Account — Transaction History", desc: "ECF allotment debit + refund credits ledger." },
+    { id: "pstx-hold",    label: "PSTX · Balance on Hold", file: "features/pstx-balance-on-hold.html",
+      title: "PSTX Account — Balance on Hold (Phase 2.1)", desc: "“ECF investment” line within Balance on Hold." },
+  ];
+
+  const tabsEl = document.getElementById("tabs");
+  const frame = document.getElementById("frame");
+  const ftitle = document.getElementById("ftitle");
+  const fdesc = document.getElementById("fdesc");
+  const openNew = document.getElementById("openNew");
+  const download = document.getElementById("download");
+
+  function select(idx) {
+    const f = FEATURES[idx];
+    [...tabsEl.children].forEach((b, i) => b.setAttribute("aria-selected", i === idx ? "true" : "false"));
+    frame.src = f.file;
+    ftitle.textContent = f.title;
+    fdesc.textContent = f.desc;
+    openNew.href = f.file;
+    download.href = f.file;
+    download.setAttribute("download", f.file.split("/").pop());
+    if (history.replaceState) history.replaceState(null, "", "#" + f.id);
+  }
+
+  FEATURES.forEach((f, i) => {
+    const b = document.createElement("button");
+    b.setAttribute("role", "tab");
+    b.textContent = f.label;
+    b.addEventListener("click", () => select(i));
+    tabsEl.appendChild(b);
+  });
+
+  const hash = (location.hash || "").replace("#", "");
+  const start = Math.max(0, FEATURES.findIndex(f => f.id === hash));
+  select(start === -1 ? 0 : start);
+</script>
+</body>
+</html>

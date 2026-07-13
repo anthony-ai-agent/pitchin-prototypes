@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corporate Actions — admin prototype (throwaway)</title>
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/dist/tabler-icons.min.css" rel="stylesheet">
+<style>body{margin:0;background:#ececed;padding:18px;font-family:'Poppins',system-ui,sans-serif}</style>
+</head>
+<body>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+#adm{font-family:'Poppins',system-ui,sans-serif;background:#f8f9fe;border-radius:14px;overflow:hidden;border:1px solid #e3e3ec;color:#4a4a55;font-size:13px;max-width:920px;margin:0 auto}
+#adm h1,#adm h2,#adm h3{margin:0;color:#32325d;font-weight:600}
+#adm .bar{background:#1a1a1a;color:#fff;padding:10px 14px;display:flex;gap:12px;align-items:center;font-size:12px;flex-wrap:wrap}
+#adm .bar b{font-weight:600;letter-spacing:.02em}
+#adm .seg{display:flex;gap:4px;background:#2e2e2e;padding:3px;border-radius:8px}
+#adm .seg button{background:transparent;color:#cfcfcf;border:none;font-size:12px;padding:5px 11px;border-radius:6px;cursor:pointer;font-family:'Poppins';font-weight:500}
+#adm .seg button.on{background:#c00000;color:#fff}
+#adm .shell{display:flex;min-height:540px;position:relative}
+#adm .side{width:206px;background:#fff;border-right:1px solid #ececf2;padding:16px 0;flex-shrink:0}
+#adm .brand{font-weight:700;color:#c00000;font-size:17px;padding:0 18px 16px}
+#adm .side .grp{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#a0a0ad;padding:12px 18px 6px}
+#adm .side a{display:flex;align-items:center;gap:9px;padding:9px 18px;color:#5a5a66;cursor:pointer;font-size:12.5px;border-left:3px solid transparent}
+#adm .side a.on{color:#c00000;background:#fbeaea;border-left-color:#c00000;font-weight:600}
+#adm .side a i{font-size:16px}
+#adm .main{flex:1;padding:22px 26px;overflow:auto}
+#adm .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+#adm .crumb{font-size:11px;color:#a0a0ad;margin-bottom:3px}
+#adm .btn{font-family:'Poppins';font-weight:500;font-size:12.5px;border-radius:8px;padding:9px 16px;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:6px}
+#adm .btn-primary{background:#c00000;color:#fff}
+#adm .btn-secondary{background:#006935;color:#fff}
+#adm .btn-out{background:#fff;color:#c00000;border:1px solid #c00000}
+#adm .btn-ghost{background:#fff;color:#5a5a66;border:1px solid #d4d4dd}
+#adm .btn-action{border-radius:5px;font-size:12px;padding:7px 13px}
+#adm .btn:disabled{background:#dcdce4;color:#fff;cursor:not-allowed}
+#adm .card{background:#fff;border:1px solid #ececf2;border-radius:10px;padding:18px}
+#adm table{width:100%;border-collapse:collapse}
+#adm thead th{background:#eef0f4;text-transform:uppercase;font-size:10.5px;color:#5a5a66;font-weight:600;text-align:left;padding:11px 12px;letter-spacing:.03em}
+#adm tbody td{padding:11px 12px;border-bottom:1px solid #ededf2;font-size:12.5px;color:#3a3a44}
+#adm .tbl-wrap{border:1px solid #e6e6ee;border-radius:8px;overflow:hidden}
+#adm .badge{display:inline-block;font-size:10.5px;font-weight:600;border-radius:5px;padding:3px 9px;border:1px solid}
+#adm .b-neutral{background:#f0f0f3;color:#5c5c66;border-color:#e0e0e6}
+#adm .b-amber{background:#fdf6e3;color:#9a6b00;border-color:#efe2bd}
+#adm .b-green{background:#e8f1ee;color:#006935;border-color:#cfe5db}
+#adm .b-red{background:#fcebeb;color:#b3261e;border-color:#f1cccc}
+#adm .input-label{font-weight:500;color:#000;margin-bottom:5px;font-size:12px}
+#adm .helper{font-size:11px;color:#9a9aa6;margin-top:4px}
+#adm .form-control{width:100%;height:2.5rem;border-radius:5px;border:1px solid #cbc8c5;padding:0 11px;font-family:'Poppins';font-size:12.5px;color:#000;box-sizing:border-box;background:#fff}
+#adm .fg{margin-bottom:15px}
+#adm .steps{display:flex;gap:8px;margin-bottom:20px}
+#adm .step{flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;background:#fff;border:1px solid #ececf2;font-size:12px;color:#9a9aa6}
+#adm .step.on{border-color:#c00000;color:#c00000;font-weight:600}
+#adm .step.done{color:#006935;border-color:#cfe5db}
+#adm .stepn{width:20px;height:20px;border-radius:50%;background:#d8d8e0;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+#adm .step.on .stepn{background:#c00000}#adm .step.done .stepn{background:#006935}
+#adm .drop{border:2px dashed #006935;background:#e2eee8;border-radius:10px;padding:30px;text-align:center;color:#006935}
+#adm .alert{border-radius:8px;padding:12px 15px;font-size:12.5px;margin-bottom:14px;display:flex;gap:9px;align-items:flex-start;border-left:3px solid}
+#adm .a-err{background:#fcebeb;border-color:#b3261e;color:#a32020}
+#adm .a-ok{background:#e8f1ee;border-color:#006935;color:#0a6e38}
+#adm .a-info{background:#f2f2f6;border-color:#a0a0ad;color:#5a5a66}
+#adm .mut{color:#9a9aa6}
+#adm .metric{background:#f6f6fb;border-radius:8px;padding:14px;text-align:center}
+#adm .metric .n{font-size:26px;font-weight:700;color:#32325d}
+#adm .metric .l{font-size:11px;color:#9a9aa6;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+#adm .tog{display:inline-flex;background:#eaeaf0;border-radius:6px;padding:2px;vertical-align:middle}
+#adm .tog button{border:none;background:transparent;color:#6a6a76;border-radius:5px;padding:4px 10px;cursor:pointer;font-family:'Poppins';font-size:11px;font-weight:500}
+#adm .tog button.on{background:#32325d;color:#fff}
+#adm .vp{position:absolute;inset:0;background:rgba(20,20,30,.5);display:flex;align-items:center;justify-content:center;z-index:5}
+#adm .modal{background:#fff;border-radius:12px;width:420px;max-width:92%;overflow:hidden}
+#adm .modal-h{padding:18px 22px 4px;text-align:center}
+#adm .modal-b{padding:10px 22px 22px;text-align:center}
+#adm .hide{display:none}
+</style>
+<div id="adm">
+  <div class="bar"><b>PROTOTYPE · ADMIN</b>
+    <span style="color:#9a9a9a">View:</span>
+    <span class="seg" id="seg">
+      <button data-v="list" class="on">Corporate actions list</button>
+      <button data-v="create">Create wizard</button>
+      <button data-v="manage">Manage &amp; outcome</button>
+    </span>
+  </div>
+  <div class="shell">
+    <div class="side">
+      <div class="brand">pitchIN <span style="color:#32325d;font-weight:500">admin</span></div>
+      <div class="grp">MySec</div>
+      <a><i class="ti ti-speakerphone"></i> Market announcement</a>
+      <a><i class="ti ti-building-store"></i> Market listing</a>
+      <a><i class="ti ti-book-2"></i> Digital registry</a>
+      <a class="on"><i class="ti ti-gavel"></i> Corporate actions</a>
+      <a><i class="ti ti-wallet"></i> Wallet transaction</a>
+      <a><i class="ti ti-arrows-exchange"></i> Order execution</a>
+    </div>
+    <div class="main" id="main"></div>
+    <div id="ov"></div>
+  </div>
+</div>
+<script>
+(function(){
+  var main=document.getElementById('main'),ov=document.getElementById('ov');
+  var st={view:'list',step:0,upload:'none',outcome:''};
+
+  function listView(){
+    return '<div class="top"><div><div class="crumb">MySec › Corporate actions</div><h1 style="font-size:20px">Corporate actions</h1></div>'
+      +'<button class="btn btn-primary" data-act="goCreate"><i class="ti ti-plus"></i> New corporate action</button></div>'
+      +'<div class="tbl-wrap"><table><thead><tr><th>Company</th><th>Type</th><th>Voting window</th><th>Voters</th><th>Status</th><th></th></tr></thead><tbody>'
+      +row('Tropika Foods Bhd','Share buyback','20–30 Jun 2026','45','b-green','Voting open','goManage')
+      +row('Mega Logistics Bhd','Share buyback','Not set','—','b-neutral','Draft','goCreate')
+      +row('Solaris Bhd','Share buyback','Awaiting superadmin','120','b-amber','Pending approval','')
+      +row('Berjaya Tech Bhd','Share buyback','1–12 May 2026','88','b-green','Outcome: approved','')
+      +'</tbody></table></div>';
+  }
+  function row(c,t,w,v,bc,bl,act){
+    return '<tr style="cursor:'+(act?'pointer':'default')+'" '+(act?'data-act="'+act+'"':'')+'><td style="font-weight:600;color:#32325d">'+c+'</td><td>'+t+'</td><td>'+w+'</td><td>'+v+'</td><td><span class="badge '+bc+'">'+bl+'</span></td><td style="text-align:right;color:#c00000">'+(act?'Manage ›':'')+'</td></tr>';
+  }
+
+  function stepsBar(){
+    var labels=['Details','Upload voters','Review and submit'];
+    return '<div class="steps">'+labels.map(function(l,i){
+      var cls=i===st.step?'on':(i<st.step?'done':'');
+      var ic=i<st.step?'<i class="ti ti-check"></i>':(i+1);
+      return '<div class="step '+cls+'" data-step="'+i+'"><span class="stepn">'+ic+'</span>'+l+'</div>';
+    }).join('')+'</div>';
+  }
+  function createView(){
+    var inner='';
+    if(st.step===0){
+      inner='<div class="card"><h3 style="font-size:15px;margin-bottom:16px">Action details</h3>'
+        +'<div class="fg"><div class="input-label">Company</div><select class="form-control"><option>Mega Logistics Bhd</option><option>Tropika Foods Bhd</option></select></div>'
+        +'<div class="fg"><div class="input-label">Corporate action type</div><select class="form-control"><option>Share buyback</option></select><div class="helper">Only share buyback is available now. More types are coming.</div></div>'
+        +'<div style="display:flex;gap:14px"><div class="fg" style="flex:1"><div class="input-label">Voting opens</div><input class="form-control" value="20 Jun 2026"></div>'
+        +'<div class="fg" style="flex:1"><div class="input-label">Voting closes</div><input class="form-control" value="30 Jun 2026"><div class="helper">Voting deadline. Ballots are final at this time.</div></div></div>'
+        +'<div class="fg"><div class="input-label">Description</div><textarea class="form-control" style="height:64px;padding:9px 11px">Mega Logistics is offering to buy back shares held under nominee...</textarea><div class="helper">Shown to investors on their ballot.</div></div>'
+        +'<div class="alert a-info" style="margin-bottom:0"><i class="ti ti-info-circle"></i><div>Halt trading for this company before opening the vote. Holdings must stay frozen for the duration of the exercise.</div></div>'
+        +'</div><div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="btn btn-primary" data-act="next">Next: upload voters</button></div>';
+    } else if(st.step===1){
+      inner=uploadStep();
+    } else {
+      inner='<div class="card"><h3 style="font-size:15px;margin-bottom:14px">Review</h3>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:12.5px">'
+        +kv('Company','Mega Logistics Bhd')+kv('Type','Share buyback')+kv('Voting window','20–30 Jun 2026')+kv('Eligible voters','45 matched')
+        +'</div><div class="alert a-ok" style="margin:16px 0 0"><i class="ti ti-circle-check"></i><div>All 45 rows matched a shareholder. Per-investor figures loaded. Shares held, amount invested and share type will be read from the registry.</div></div>'
+        +'</div>'
+        +'<div class="alert a-info" style="margin-top:14px"><i class="ti ti-user-shield"></i><div>Submitting sends this action to a superadmin for approval. Voting can\'t open until it\'s approved.</div></div>'
+        +'<div style="display:flex;justify-content:space-between;margin-top:12px"><button class="btn btn-ghost" data-act="back">Back</button><button class="btn btn-secondary" data-act="submitApproval"><i class="ti ti-send"></i> Submit for approval</button></div>';
+    }
+    return '<div class="top"><div><div class="crumb">MySec › Corporate actions › New</div><h1 style="font-size:20px">New corporate action</h1></div></div>'+stepsBar()+inner;
+  }
+  function kv(k,v){return '<div><div class="mut" style="font-size:11px">'+k+'</div><div style="font-weight:600;color:#32325d;font-size:13px">'+v+'</div></div>';}
+
+  function uploadStep(){
+    var head='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="font-size:15px">Upload eligible shareholders</h3>'
+      +'<span style="font-size:11px;color:#9a9aa6">Simulate: <span class="tog"><button data-sim="err" class="'+(st.upload!=='clean'?'on':'')+'">With errors</button><button data-sim="clean" class="'+(st.upload==='clean'?'on':'')+'">All matched</button></span></span></div>'
+      +'<div class="drop"><i class="ti ti-file-spreadsheet" style="font-size:30px"></i><div style="margin-top:8px;font-weight:600">Drag in an Excel file, or browse</div><div style="font-size:11px;margin-top:3px">Each row is matched to a shareholder by Investor ID</div></div>';
+    var body='';
+    if(st.upload==='clean'){
+      body='<div class="alert a-ok" style="margin-top:14px"><i class="ti ti-circle-check"></i><div><b>All 45 rows matched a shareholder.</b> Ready to submit.</div></div>'+previewTable(true);
+    } else {
+      body='<div class="alert a-err" style="margin-top:14px"><i class="ti ti-alert-circle"></i><div><b>3 of 45 rows didn\'t match a shareholder.</b> Upload is blocked until every row matches. Download the annotated file, fix the flagged rows, and re-upload.</div></div>'+previewTable(false);
+    }
+    head+=body+'</div>';
+    var foot;
+    if(st.upload==='clean'){
+      foot='<div style="display:flex;justify-content:space-between;margin-top:12px"><button class="btn btn-ghost" data-act="back">Back</button><button class="btn btn-primary" data-act="next">Next: review</button></div>';
+    } else {
+      foot='<div style="display:flex;justify-content:space-between;margin-top:12px"><button class="btn btn-ghost" data-act="back">Back</button><div style="display:flex;gap:10px"><button class="btn btn-out" data-act="export"><i class="ti ti-download"></i> Download annotated file</button><button class="btn btn-primary" disabled>Next: review</button></div></div>';
+    }
+    return head+foot;
+  }
+  function previewTable(clean){
+    var rows=[
+      ['ECF-001042','Aisyah binti R.','12,000','RM 1.85','RM 22,200','+48%','ok'],
+      ['ECF-002310','Tan Wei L.','5,400','RM 1.85','RM 9,990','+33%','ok'],
+      ['ECF-009881','Kumar S.','—','RM 1.85','RM 4,625','+51%',clean?'ok':'nomatch'],
+      ['ECF-004220','Lim Boon H.','8,800','RM 1.85','RM 16,280','+40%','ok'],
+      ['ECF-00 ???','(blank)','—','RM 1.85','—','—',clean?'ok':'bad']
+    ];
+    var tb=rows.map(function(r){
+      var stat;
+      if(r[6]==='ok')stat='<span style="color:#5c5c66"><i class="ti ti-check"></i> Matched</span>';
+      else if(r[6]==='nomatch')stat='<span style="color:#b3261e;font-weight:600"><i class="ti ti-x"></i> No shareholder</span>';
+      else stat='<span style="color:#b3261e;font-weight:600"><i class="ti ti-x"></i> Invalid Investor ID</span>';
+      var bad=r[6]!=='ok';
+      var bg=bad?'background:#fcebeb;':'';
+      var bl=bad?'box-shadow:inset 3px 0 0 #b3261e;':'';
+      return '<tr style="'+bg+bl+'"><td style="font-family:monospace">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td><td>'+r[4]+'</td><td>'+r[5]+'</td><td>'+stat+'</td></tr>';
+    }).join('');
+    return '<div class="tbl-wrap" style="margin-top:8px"><table><thead><tr><th>Investor ID</th><th>Name</th><th>Shares*</th><th>Price/share</th><th>Payout</th><th>ROI</th><th>Match</th></tr></thead><tbody>'+tb+'</tbody></table></div>'
+      +'<div class="helper" style="margin-top:6px">* Shares held, amount invested and share type are taken from the registry, not from your file.</div>';
+  }
+
+  function manageView(){
+    return '<div class="top"><div><div class="crumb">MySec › Corporate actions › Tropika Foods Bhd</div><h1 style="font-size:20px">Tropika Foods Bhd — share buyback</h1>'
+      +'<span class="badge b-green" style="margin-top:6px;display:inline-block">Voting open · closes 30 Jun 2026</span></div>'
+      +'<button class="btn btn-out btn-action" data-act="closeEarly">Close voting early</button></div>'
+      +'<div class="card" style="margin-bottom:16px"><div style="margin-bottom:12px"><h3 style="font-size:14px;display:inline">Vote tally</h3> <span class="mut" style="font-size:11px">· Internal only — not shown to investors</span></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'
+      +'<div class="metric"><div class="n">32</div><div class="l">Approve</div></div>'
+      +'<div class="metric"><div class="n">8</div><div class="l">Reject</div></div>'
+      +'<div class="metric"><div class="n">40</div><div class="l">Votes cast</div></div>'
+      +'<div class="metric"><div class="n">5</div><div class="l">Not voted</div></div></div>'
+      +'<div class="mut" style="font-size:11px;margin-top:10px">These are raw vote counts. The system doesn\'t decide the outcome — you do.</div></div>'
+      +'<div class="card"><h3 style="font-size:14px;margin-bottom:12px">Publish outcome</h3>'
+      +'<div class="fg" style="margin-bottom:12px"><div class="input-label">Outcome</div><div style="display:flex;gap:8px">'
+      +oBtn('Approved','b-green')+oBtn('Rejected','b-red')+oBtn('Withdrawn','b-neutral')+'</div></div>'
+      +'<div class="fg"><div class="input-label">Note to investors</div><textarea class="form-control" style="height:52px;padding:9px 11px" placeholder="e.g. The buyback will proceed; payout within 14 days."></textarea><div class="helper">Shown to investors with the outcome.</div></div>'
+      +'<div class="alert a-info"><i class="ti ti-user-shield"></i><div>The outcome is sent to a superadmin for approval before it\'s published to investors.</div></div>'
+      +'<div style="display:flex;justify-content:flex-end"><button class="btn btn-secondary" data-act="publish"'+(st.outcome?'':' disabled')+'><i class="ti ti-send"></i> Submit outcome for approval</button></div></div>';
+  }
+  function oBtn(l,b){var on=st.outcome===l;return '<button class="btn btn-action" data-out="'+l+'" style="background:'+(on?'#f0f0f3':'#fff')+';border:1px solid '+(on?'#32325d':'#d4d4dd')+';color:#5a5a66"><span class="badge '+b+'">'+l+'</span></button>';}
+
+  function render(){
+    main.innerHTML=st.view==='list'?listView():(st.view==='create'?createView():manageView());
+    document.getElementById('seg').querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-v')===st.view);});
+  }
+  function modal(title,body,okLabel,okClass){
+    ov.innerHTML='<div class="vp"><div class="modal"><div class="modal-h"><div style="width:50px;height:50px;border-radius:50%;background:#f2f2f6;display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><i class="ti ti-user-shield" style="font-size:24px;color:#5a5a66"></i></div><h3 style="font-size:17px">'+title+'</h3></div><div class="modal-b"><p class="mut" style="line-height:1.55;margin:0 0 18px">'+body+'</p><div style="display:flex;gap:10px"><button class="btn btn-ghost" style="flex:1" data-act="closeOv">Cancel</button><button class="btn '+okClass+'" style="flex:1" data-act="closeOv">'+okLabel+'</button></div></div></div></div>';
+  }
+
+  document.getElementById('seg').addEventListener('click',function(e){var b=e.target.closest('button');if(b){st.view=b.getAttribute('data-v');if(st.view==='create')st.step=0;render();}});
+  document.getElementById('adm').addEventListener('click',function(e){
+    var s=e.target.closest('[data-sim]');if(s){st.upload=s.getAttribute('data-sim')==='clean'?'clean':'err';render();return;}
+    var sp=e.target.closest('[data-step]');if(sp){var n=+sp.getAttribute('data-step');if(n<=st.step||st.upload==='clean'){st.step=n;render();}return;}
+    var o=e.target.closest('[data-out]');if(o){st.outcome=o.getAttribute('data-out');render();return;}
+    var a=e.target.closest('[data-act]');if(!a)return;
+    var act=a.getAttribute('data-act');
+    if(act==='goCreate'){st.view='create';st.step=0;render();}
+    else if(act==='goManage'){st.view='manage';render();}
+    else if(act==='next'){st.step=Math.min(2,st.step+1);render();}
+    else if(act==='back'){st.step=Math.max(0,st.step-1);render();}
+    else if(act==='export'){modal('Annotated file downloaded','Every row now has a Match column (Matched / No shareholder / Invalid Investor ID). Fix the 3 flagged rows and re-upload.','Done','btn-primary');}
+    else if(act==='submitApproval'){modal('Submit for approval?','This sends the action to a superadmin. You can\'t edit voters or details while it\'s pending approval.','Submit for approval','btn-secondary');}
+    else if(act==='closeEarly'){modal('Close voting early?','Voting will close now, before the deadline. Eligible shareholders who haven\'t voted will lose their chance. This can\'t be undone.','Close voting','btn-primary');}
+    else if(act==='publish'){modal('Submit outcome for approval?','This sends the outcome to a superadmin. Once approved, it\'s published to investors and can\'t be changed.','Submit outcome','btn-secondary');}
+    else if(act==='closeOv'){ov.innerHTML='';}
+  });
+  render();
+})();
+</script>
+</body>
+</html>
