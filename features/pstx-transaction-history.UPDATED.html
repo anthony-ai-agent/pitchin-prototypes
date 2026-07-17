@@ -1,0 +1,654 @@
+<!-- PROTOTYPE — PSTX Account · Transaction History
+     Phase 2.2  ECF share allotment  → one DEBIT row  (Event = ECF investment, money OUT to buy allotted shares)
+     NOTE: Refund does NOT write a transaction row. A refund only RELEASES the ECF hold
+           (Balance on Hold → Account Balance); the money was already in the wallet and never
+           moved in/out, so there is no wallet credit/debit to record. The hold simply drops off
+           the Balance on Hold card. (Was previously prototyped as a "Refund" credit row — removed.)
+     Faithful to PitchinCustomerWeb wallet.component (nicholas-pstx-account-view / staging):
+       - desktop = mat-table with the real per-column header filters (Event ▽ / Status ▽, checkbox menus)
+       - mobile <1100px = .wallet-tx-card list (not a table)
+       - Balance on Hold card = the shipped Phase 2.1 three-bucket drillable card (PSTX Open Orders /
+         Withdrawal Requests / ECF investment), reused as-is — not re-explained here.
+       - Counter column relabelled "Counter / Campaign": PSTX trades → ticker link; ECF
+         investment → campaign name, linking to the campaign page.
+     Throwaway reference for an external dev. The "2.2" tag + row tint are PROTOTYPE annotations only. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSTX Account — Transaction History (ECF allotment debit)</title>
+<style>
+  :root {
+    --primary: #BF2026;          /* brand red  → Debit / Withdraw amounts (tw-text-primary) */
+    --primary-light: #FEE2E3;
+    --secondary: #006937;        /* dark green */
+    --secondary-light: #0A994A;  /* product green → Credit / Deposit amounts (tw-text-secondary-light) */
+    --ink: #101828;
+    --muted: #6a6a6a;
+    --label: #7f7f7f;
+    --hair: #eaecf0;
+    --hover: #f9fafb;
+    --ok-tx: #027a48; --ok-bg: #ecfdf3; --ok-dot: #12b76a;
+    --pend-tx: #c4320a; --pend-bg: #fff6ed; --pend-dot: #fb6514;
+    --bg: #eef0f3; --sheet: #fff; --dark: #0f1729; --faint: #8a93a3;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --tag22: #b5651d; --tag22-bg: #fdf1e3;   /* 2.2 amber (prototype-only) */
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  .topbar { background: var(--dark); color: #fff; padding: 16px 22px; }
+  .topbar .in { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .topbar h1 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .topbar h1 span { color: #8ea2c4; font-weight: 500; }
+  .topbar .spacer { flex: 1; }
+  .legend { display: flex; gap: 8px; flex-wrap: wrap; }
+  .lg { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; padding: 5px 11px; border-radius: 7px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14); color: #d7dce6; }
+  .lg b { color: #fff; font-weight: 600; }
+  .lg .amt { font-family: var(--mono); font-weight: 700; }
+  .lg .debit { color: #ff8a8f; } .lg .credit { color: #7ee0a3; }
+
+  .stage { max-width: 1180px; margin: 0 auto; padding: 24px 22px 60px; }
+  .frame-cap { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--faint); margin: 0 0 8px; font-weight: 700; display:flex; align-items:center; gap:8px;}
+  .frame-cap .dim { color: #b3bac6; font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+  /* ================= PRODUCT CHROME ================= */
+  .app { background: #fff; border-radius: 14px; overflow: hidden; border: 1px solid var(--hair); box-shadow: 0 8px 26px rgba(16,24,40,.10); position: relative; }
+  .topnav { display: flex; align-items: center; gap: 24px; padding: 0 22px; height: 58px; border-bottom: 1px solid var(--hair); }
+  .topnav .logo svg { height: 26px; width: auto; display: block; }
+  .navlinks { display: flex; gap: 22px; }
+  .navlinks a { font-size: 13.5px; color: var(--muted); text-decoration: none; padding: 4px 0; border-bottom: 2px solid transparent; }
+  .navlinks a.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--secondary-light); }
+  .navlinks a.ecf { color: var(--secondary); }
+  .topnav .spacer { flex: 1; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #eef1f4; border: 1px solid var(--hair); display: inline-flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; font-weight: 700; }
+
+  .page { padding: 22px 24px 30px; }
+  .page-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .page-head h2 { margin: 0; font-size: 21px; font-weight: 650; }
+  .pstx-badge { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: linear-gradient(90deg,var(--secondary),var(--secondary-light)); padding: 3px 9px; border-radius: 6px; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; margin-bottom: 22px; }
+
+  /* account balance card (context only) */
+  .p-card { background: #fff; border-radius: 12px; padding: 18px 20px; border: 1px solid var(--hair); }
+  .p-title { font-size: 16px; font-weight: 500; color: var(--label); }
+  .p-headline { font-size: 30px; font-weight: 600; color: #000; letter-spacing: -.01em; font-variant-numeric: tabular-nums; padding-top: 4px; }
+  .p-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Phase 2.1 Balance on Hold card — reused as shipped, not re-specified here */
+  .hold-card { background: #fff; border-radius: 12px; padding: 18px 20px; border: 1px solid var(--hair); position: relative; }
+  .hold-head { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; }
+  .hold-info { width: 15px; height: 15px; border-radius: 50%; border: 1.4px solid #c4c9d1; color: #98a2b3; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; cursor: help; }
+  .hold-rule { border: 0; border-top: 1px solid var(--hair); margin: 12px 0 4px; }
+  .hold-rows { display: flex; flex-direction: column; }
+  .hold-row { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 7px 11px; border: 0; background: transparent; border-radius: 8px; cursor: pointer; text-align: left; font-family: inherit; }
+  .hold-row:hover { background: var(--hover); }
+  .hold-row:disabled { cursor: default; }
+  .hold-row:disabled:hover { background: transparent; }
+  .hold-row__label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+  .hold-row__amt { font-size: 13px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .hold-chev { width: 11px; height: 11px; flex-shrink: 0; color: #98a2b3; transition: transform .18s ease; }
+  .hold-row[aria-expanded="true"] .hold-chev { transform: rotate(90deg); }
+  .hold-anchor { position: relative; }
+  .hold-pop { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); background: #fff; border: 1px solid var(--hair); border-radius: 12px; box-shadow: 0 12px 32px rgba(16,24,40,.14); overflow: hidden; opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .16s ease, transform .16s ease; }
+  .hold-pop.open { opacity: 1; transform: none; pointer-events: auto; }
+  .hold-pop::before { content: ""; position: absolute; top: -6px; left: 24px; width: 11px; height: 11px; background: #fff; border-left: 1px solid var(--hair); border-top: 1px solid var(--hair); transform: rotate(45deg); }
+  .dd-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px; }
+  .dd-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .dd-count { font-size: 11px; font-weight: 500; color: var(--muted); padding: 2px 10px; border-radius: 20px; background: #f6f6f6; white-space: nowrap; }
+  .dd-x { margin-left: auto; width: 30px; height: 30px; border: 1px solid var(--hair); border-radius: 8px; background: #fff; color: #667085; font-size: 18px; line-height: 1; cursor: pointer; flex-shrink: 0; }
+  .dd-list { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
+  .dd-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--hair); }
+  .dd-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .dd-primary { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .dd-secondary { font-size: 11px; color: var(--muted); }
+  .dd-amt { font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dd-link { display: block; width: 100%; text-align: left; padding: 12px 16px; background: transparent; border: 0; border-top: 1px solid var(--hair); font-size: 13px; font-weight: 600; color: var(--secondary); cursor: pointer; font-family: inherit; }
+  .dd-link:hover { text-decoration: underline; }
+
+  /* transaction history */
+  .txn-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .txn-head h3 { margin: 0; font-size: 17px; font-weight: 600; }
+
+  /* desktop table + real per-column header filters */
+  .tx-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: 12px; }
+  table.tx { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 760px; }
+  table.tx th { text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--label); background: #fafbfc; padding: 12px 16px; border-bottom: 1px solid var(--hair); white-space: nowrap; position: relative; }
+  table.tx th.r, table.tx td.r { text-align: right; }
+  table.tx td { padding: 13px 16px; border-bottom: 1px solid var(--hair); vertical-align: middle; }
+  table.tx tbody tr:last-child td { border-bottom: 0; }
+  .tx-date { font-weight: 600; white-space: nowrap; }
+  .tx-date span { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+  .tx-event { font-weight: 600; }
+  .tx-amt { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; font-size: 13.5px; }
+  .tx-amt.debit { color: var(--primary); }
+  .tx-amt.credit { color: var(--secondary-light); }
+  .counter-link { color: var(--secondary); font-weight: 600; text-decoration: none; cursor: pointer; }
+  .counter-link:hover { text-decoration: underline; }
+  .counter-link.ticker { text-transform: uppercase; }
+  .counter-dash { color: #cbd0d8; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; border-radius: 16px; padding: 3px 11px; white-space: nowrap; }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; }
+  .badge.ok { color: var(--ok-tx); background: var(--ok-bg); } .badge.ok::before { background: var(--ok-dot); }
+  .badge.pend { color: var(--pend-tx); background: var(--pend-bg); } .badge.pend::before { background: var(--pend-dot); }
+  .view { font-size: 12.5px; font-weight: 600; color: var(--secondary); cursor: pointer; }
+  .view.off { color: #cbd0d8; cursor: default; }
+  .order-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; border-radius: 20px; padding: 2px 9px; margin-left: 7px; }
+  .order-badge.buy { background: var(--secondary-light); color: #fff; }
+  .order-badge.sell { background: var(--primary-light); color: var(--primary); }
+
+  /* column-header filter trigger + checkbox menu (mirrors .wallet-column-filter / .wallet-filter-menu) */
+  .col-filter { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .col-filter__icon { font-size: 10px; color: #6a6a6a; }
+  .filter-menu { position: absolute; top: 100%; left: 16px; margin-top: 6px; z-index: 40; min-width: 230px; background: #fff; border: 1px solid var(--hair); border-radius: 10px; box-shadow: 0 10px 28px rgba(16,24,40,.14); padding: 12px; text-transform: none; letter-spacing: normal; font-weight: 400; display: none; }
+  .filter-menu.open { display: block; }
+  .filter-menu__title { margin-bottom: 8px; font-size: 11px; font-weight: 600; letter-spacing: .3px; color: var(--muted); text-transform: uppercase; }
+  .filter-menu__check { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .filter-menu__check input { width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+  .filter-menu__check label { font-size: 13px; color: var(--ink); cursor: pointer; font-weight: 500; }
+  .filter-menu__new { font-size: 8.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; margin-left: 5px; color: var(--tag22); background: var(--tag22-bg); }
+  .filter-menu__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .filter-menu__clear { border: none; background: none; padding: 6px 10px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .filter-menu__apply { border: none; border-radius: 6px; background: #027a48; padding: 6px 14px; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; }
+  .active-filter-pill { font-size: 11px; font-weight: 600; color: var(--secondary); background: var(--ok-bg); border-radius: 20px; padding: 2px 9px; margin-left: 6px; }
+
+  /* prototype annotation: phase tag + row tint (does NOT ship) */
+  .ptag { display: inline-flex; align-items: center; font-size: 9.5px; font-weight: 800; letter-spacing: .04em; border-radius: 5px; padding: 1px 6px; margin-left: 9px; vertical-align: 1px; }
+  .ptag.p22 { color: var(--tag22); background: var(--tag22-bg); }
+  tr.new22 td { background: #fffaf3; } tr.new22 td:first-child { box-shadow: inset 3px 0 0 var(--tag22); }
+
+  /* ---------- mobile phone frame ---------- */
+  .phone { width: 340px; border: 9px solid #10161f; border-radius: 34px; overflow: hidden; background: #fff; position: relative; }
+  .phone__notch { height: 24px; background: #10161f; }
+  .phone__nav { display: flex; align-items: center; gap: 10px; padding: 0 14px; height: 48px; border-bottom: 1px solid var(--hair); }
+  .phone__nav .logo svg { height: 21px; width: auto; display: block; }
+  .phone__nav .spacer { flex: 1; }
+  .phone__scroll { padding: 15px 13px 22px; }
+  .phone .page-head h2 { font-size: 17px; } .phone .page-head { margin-bottom: 12px; }
+  .phone .p-card, .phone .hold-card { padding: 14px 15px; }
+  .phone .p-card + .hold-card { margin-top: 12px; }
+  .phone .p-headline { font-size: 24px; }
+  .txn-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+  .txc { border: 1px solid var(--hair); border-radius: 12px; padding: 12px 14px; position: relative; }
+  .txc.new22 { box-shadow: inset 3px 0 0 var(--tag22); background: #fffaf3; }
+  .txc__sum { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .txc__main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .txc__title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .txc__event { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .txc__ticker { font-size: 14px; font-weight: 600; color: var(--ink); text-transform: uppercase; }
+  .txc__meta { font-size: 12px; color: var(--muted); }
+  .txc__trigger { font-size: 12px; color: var(--muted); }
+  .txc__trigger .counter-link { font-size: 12px; }
+  .txc__right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .txc__amt { font-size: 14.5px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .txc__amt.debit { color: var(--primary); } .txc__amt.credit { color: var(--secondary-light); }
+  .txc__actions { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--hair); display: flex; gap: 8px; }
+  .action-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: #344054; border: 1px solid #d0d5dd; background: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+
+  .sheet-backdrop { position: absolute; inset: 0; background: rgba(16,24,40,.45); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 50; }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 -6px 24px rgba(16,24,40,.18); overflow: hidden; transform: translateY(100%); transition: transform .24s cubic-bezier(.32,.72,0,1); z-index: 51; }
+  .sheet.open { transform: none; }
+  .sheet__grab { width: 40px; height: 4px; border-radius: 4px; background: #d0d5dd; margin: 10px auto 2px; }
+
+  /* nav toast (prototype-only stand-in for real routing) */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 12px); background: var(--dark); color: #fff; font-size: 13px; padding: 10px 18px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease; z-index: 999; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast .mono { font-family: var(--mono); color: #9ff0c4; margin-left: 4px; }
+
+  /* ---------- reference strip ---------- */
+  .ref { background: var(--sheet); border: 1px solid var(--hair); border-radius: 14px; padding: 20px 22px; margin-top: 24px; }
+  .ref h4 { margin: 0 0 4px; font-size: 15px; font-weight: 650; }
+  .ref .sub { margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+  .tblwrap { overflow-x: auto; }
+  table.spec { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 640px; }
+  table.spec th, table.spec td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--hair); vertical-align: top; }
+  table.spec th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 700; background: #fafbfc; }
+  table.spec td .mono, .kv .mono { font-family: var(--mono); font-size: 12px; background: #f4f6f8; border: 1px solid var(--hair); border-radius: 4px; padding: 1px 6px; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; border: 1px solid rgba(0,0,0,.12); }
+  .pill-in { font-size: 10px; font-weight: 800; border-radius: 5px; padding: 1px 6px; }
+  .pill-in.p22 { color: var(--tag22); background: var(--tag22-bg); }
+  .kv { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+  .kv > div { font-size: 13px; color: #2d3646; padding-left: 16px; position: relative; }
+  .kv > div::before { content: ""; position: absolute; left: 2px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--secondary-light); }
+  .kv b { color: var(--ink); }
+
+  .two { display: grid; grid-template-columns: 1fr auto; gap: 26px; align-items: start; }
+  @media (max-width: 1080px) { .two { grid-template-columns: 1fr; justify-items: center; } .cards { grid-template-columns: 1fr; } }
+</style>
+
+<div class="topbar">
+  <div class="in">
+    <h1>PSTX Account — Transaction History <span>· ECF allotment debit</span></h1>
+    <div class="spacer"></div>
+    <div class="legend">
+      <span class="lg"><span class="pill-in p22">2.2</span> ECF investment <b class="amt debit">− debit</b></span>
+      <span class="lg">Refund = hold release only · <b>no row</b></span>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="two">
+    <!-- DESKTOP -->
+    <div style="min-width:0;width:100%;">
+      <p class="frame-cap">Desktop · ≥ 1100px — <span class="dim">mat-table + column-header filters</span></p>
+      <div class="app" id="desktopApp"></div>
+    </div>
+    <!-- MOBILE -->
+    <div>
+      <p class="frame-cap">Mobile · &lt; 1100px — <span class="dim">card list</span></p>
+      <div class="phone" id="mobileApp"></div>
+    </div>
+  </div>
+
+  <!-- reference -->
+  <div class="ref">
+    <h4>The row this adds</h4>
+    <p class="sub">The new row is a plain <span class="mono" style="font-family:var(--mono);font-size:12px;">WalletTransactionHistory</span> row — no new column. Amount sign &amp; colour are driven by <span class="mono" style="font-family:var(--mono);font-size:12px;">CreditFlow</span>, exactly like Buy / Top&nbsp;up today.</p>
+    <div class="tblwrap"><table class="spec"><thead><tr>
+      <th>Phase</th><th>Event</th><th>CreditFlow → amount</th><th>Trigger (sub-line)</th><th>Counter / Campaign</th><th>Status</th>
+    </tr></thead><tbody>
+      <tr>
+        <td><span class="pill-in p22">2.2</span></td>
+        <td><b>ECF investment</b><div style="color:var(--muted);font-size:11.5px;">new enum <span class="mono">EcfInvestment = 6</span></div></td>
+        <td><span class="sw" style="background:var(--primary)"></span><b style="color:var(--primary)">Debit → − RM</b></td>
+        <td style="color:var(--muted)">none — no sub-line</td>
+        <td>Campaign name, links to campaign page</td>
+        <td>Approved</td>
+      </tr>
+      <tr>
+        <td style="color:var(--muted)">—</td>
+        <td><b>Refund</b><div style="color:var(--muted);font-size:11.5px;">all 3 triggers: system / admin / investor</div></td>
+        <td colspan="4" style="color:var(--muted)"><b style="color:var(--ink)">No transaction row.</b> A refund only releases the ECF hold — the held amount moves from <b>Balance on Hold</b> back to <b>Account Balance</b>. The money never left the wallet, so there is no wallet credit/debit to record; the pledge simply drops off the Balance on Hold card.</td>
+      </tr>
+    </tbody></table></div>
+    <div class="kv">
+      <div><b>Header filters, not a segmented control.</b> Event and Status are filtered the same way the rest of the table already works — a "▽" trigger embedded in each column header opens a checkbox menu (All / Clear / Apply). Only <span class="mono">ECF investment</span> needs adding to the existing Event-filter option list (no <span class="mono">Refund</span> option — refunds don't appear here); Status reuses the existing Pending / Approved / Completed / Failed set untouched.</div>
+      <div><b>Counter → "Counter / Campaign".</b> Same column, same link styling as a PSTX ticker — for the ECF investment event it renders the campaign name instead of a ticker and routes to the campaign page (<span class="mono">/equity/{{slug}}</span>, same pattern as My Investments) instead of <span class="mono">/pstx/{{ticker}}</span>.</div>
+      <div><b>Balance on Hold is unchanged from Phase 2.1</b> — same three-bucket drillable card (PSTX Open Orders / Withdrawal Requests / ECF investment). It isn't re-specified here; this screen shows it simply reflecting fewer/no held ECF pledges once they've allotted (→ debit row) or been refunded (→ hold released, no row).</div>
+      <div><b>Allotment is the only money-movement row.</b> Allotment converts the ECF hold into a permanent wallet debit — <span class="mono">Balance</span> drops, <span class="mono">LockedAmount</span> drops, one Debit transaction row. A <b>refund</b> only releases the hold — <span class="mono">LockedAmount</span> drops but <span class="mono">Balance</span> is unchanged (the held money returns to Account Balance), so <b>no transaction row is written</b>. Front-end re-reads wallet-details; no client-side maths. Verify on real Postgres (ADR-0005).</div>
+      <div>The <b>2.2 tag &amp; row tint above are prototype annotations only</b> — they do not ship. The campaign-link click in this prototype just shows where it would navigate (real build uses <span class="mono">routerLink</span>).</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var RM = function (n) { var s = n < 0 ? "− " : "+ "; return s + "RM " + Math.abs(n).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  // Balance-on-Hold (Phase 2.1) amounts are plain magnitudes — no credit/debit sign.
+  var RMPlain = function (n) { return "RM " + Math.abs(n).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+  var LOGO = '<svg viewBox="0 0 307 190" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#lg)"><path d="M264.594 143.67C262.279 143.67 259.415 143.285 257.791 140.296L246.318 119.398V139.456C246.318 142.352 243.057 143.67 240.027 143.67C236.997 143.67 233.735 142.352 233.735 139.456V95.5063C233.735 92.597 236.897 91.293 240.027 91.293C244.155 91.293 245.979 91.7996 248.775 97.173L258.306 115.35V95.4356C258.306 92.921 260.775 91.293 264.594 91.293C268.417 91.293 270.887 92.921 270.887 95.4356V139.456C270.887 142.352 267.625 143.67 264.594 143.67Z" fill="#206633"/><path d="M297.479 41.2173H35.438C31.9754 41.2173 29.1687 38.4093 29.1687 34.948C29.1687 31.4853 31.9754 28.6786 35.438 28.6786H297.479C300.941 28.6786 303.749 31.4853 303.749 34.948C303.749 38.4093 300.941 41.2173 297.479 41.2173Z" fill="#206633"/><path d="M94.7291 104.358C91.1691 104.358 88.1625 101.666 88.1625 98.483C88.1625 95.2817 91.1078 92.675 94.7291 92.675C98.3131 92.675 101.229 95.2817 101.229 98.483C101.229 101.666 98.2518 104.358 94.7291 104.358ZM94.7291 143.67C91.2998 143.67 88.5078 141.779 88.5078 139.455V113.086C88.5078 110.646 91.0665 108.94 94.7291 108.94C98.3731 108.94 101.02 110.683 101.02 113.086V139.455C101.02 141.74 98.1385 143.67 94.7291 143.67Z" fill="#C01E24"/><path d="M64.897 119.654C62.849 119.654 60.7343 121.26 60.7343 123.952V129.696C60.7343 130.436 62.5623 133.234 65.0316 133.234C67.169 133.234 69.2636 131.037 69.2636 128.797V123.952C69.2636 121.924 67.397 119.654 64.897 119.654ZM54.3743 158.69C50.9823 158.69 48.2223 156.797 48.2223 154.474V113.085C48.2223 110.682 50.753 108.94 54.237 108.94C57.229 108.94 59.4303 110.245 59.933 112.206C61.8263 110.244 64.7663 108.526 68.4956 108.526C75.9423 108.526 81.7756 115.302 81.7756 123.952V128.797C81.7756 137.088 75.7303 144.362 68.8423 144.362C65.5303 144.362 62.621 142.78 60.7343 140.769V154.474C60.7343 156.758 57.821 158.69 54.3743 158.69" fill="#C01E24"/><path d="M123.177 143.67C113.585 143.67 108.72 139.434 108.72 131.082V98.7583C108.72 96.281 111.939 94.6143 114.944 94.6143C118.036 94.6143 121.235 96.165 121.235 98.7583V108.94H128.16C130.473 108.94 131.683 111.304 131.683 113.638C131.683 116.406 130.233 118.34 128.16 118.34H121.235V131.082C121.235 132.525 121.463 132.889 123.177 132.889H126.153C129.905 132.889 131.613 135.685 131.613 138.281C131.613 140.877 129.905 143.67 126.153 143.67H123.177Z" fill="#C01E24"/><path d="M152.598 144.362C142.048 144.362 135.996 138.69 135.996 128.798V124.092C135.996 114.345 142.152 108.526 152.461 108.526C159.52 108.526 165.049 111.442 165.049 115.164C165.049 117.612 163.036 121.314 160.005 121.314C159.15 121.314 158.428 120.993 157.661 120.653C156.606 120.184 155.412 119.654 153.36 119.654C149.958 119.654 148.508 120.982 148.508 124.092V128.798C148.508 131.95 149.933 133.234 153.429 133.234C155.401 133.234 156.502 132.666 157.473 132.164C158.265 131.753 159.013 131.365 160.005 131.365C163.52 131.365 165.465 134.921 165.465 137.38C165.465 141.164 159.572 144.362 152.598 144.362Z" fill="#C01E24"/><path d="M197.867 143.67C194.775 143.67 191.644 142.221 191.644 139.456V123.952C191.644 121.744 189.657 119.654 187.552 119.654C185.712 119.654 183.808 121.262 183.808 123.952V139.456C183.808 141.701 180.868 143.67 177.517 143.67C174.088 143.67 171.296 141.78 171.296 139.456V94.2583C171.296 91.8196 173.855 90.1143 177.517 90.1143C181.103 90.1143 183.808 91.8956 183.808 94.2583V111.808C185.483 110.01 188.068 108.526 191.497 108.526C198.359 108.526 204.157 115.592 204.157 123.952V139.456C204.157 142.352 200.896 143.67 197.867 143.67Z" fill="#C01E24"/><path d="M218.29 143.67C215.261 143.67 211.999 142.352 211.999 139.456V95.4356C211.999 92.921 214.469 91.293 218.29 91.293C222.111 91.293 224.581 92.921 224.581 95.4356V139.456C224.581 142.352 221.319 143.67 218.29 143.67Z" fill="#206633"/><path d="M38.4517 70.724C33.0224 70.724 19.7051 69.752 10.1944 60.9733C3.51708 54.808 0.105076 46.28 0.0504093 35.62C-0.112257 33.1827 -0.378924 21.6533 8.08774 12.2333C15.3851 4.11466 26.7371 0 41.8291 0H300.614C304.306 0 307.298 2.992 307.298 6.684C307.298 10.3747 304.306 13.368 300.614 13.368H41.8291C30.7784 13.368 22.8104 15.9533 18.1397 21.0493C12.7717 26.9107 13.3797 34.632 13.3864 34.7093C13.4037 34.904 13.4184 35.1653 13.4184 35.36C13.4184 42.3533 15.3317 47.5187 19.2637 51.1507C26.8451 58.1467 39.6877 57.332 39.8091 57.3213C39.9864 57.3067 40.1651 57.3 40.3424 57.3H300.614C304.306 57.3 307.298 60.2933 307.298 63.984C307.298 67.676 304.306 70.668 300.614 70.668H40.5597C40.1637 70.692 39.4371 70.724 38.4517 70.724Z" fill="#C01E24"/><path d="M300.615 190.032H79.624C50.1893 190.032 28.324 182.338 14.6373 167.162C-1.02266 149.802 -0.099995 128.84 0.152005 125.579V36.2898C0.152005 32.5978 3.14401 29.6058 6.83601 29.6058C10.5267 29.6058 13.52 32.5978 13.52 36.2898V125.862C13.52 126.091 13.508 126.32 13.4853 126.548C13.4707 126.696 11.9733 144.38 24.696 158.354C35.7587 170.504 54.2387 176.664 79.624 176.664H293.931V66.7405C293.931 63.0498 296.923 60.0565 300.615 60.0565C304.307 60.0565 307.299 63.0498 307.299 66.7405V183.348C307.299 187.04 304.307 190.032 300.615 190.032Z" fill="#C01E24"/></g><defs><clipPath id="lg"><rect width="307" height="190" fill="white"/></clipPath></defs></svg>';
+  var CHEV = '<svg class="hold-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"></polyline></svg>';
+
+  var el = function (t, c, h) { var e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+
+  function showToast(target) {
+    var t = document.getElementById("toast");
+    t.innerHTML = 'Prototype only — navigates to<span class="mono">' + target + '</span>';
+    t.classList.add("show");
+    clearTimeout(showToast._h);
+    showToast._h = setTimeout(function () { t.classList.remove("show"); }, 1800);
+  }
+  window.__navDemo = function (slug, e) { if (e) e.preventDefault(); showToast(slug); };
+
+  /* =============== data =============== */
+  // newest first. amount<0 => debit(red). amount>0 => credit(green).
+  var TX = [
+    { phase: "2.2", date: "09 Jul 2026", time: "10:22 AM", event: "ECF investment", amount: -1000, campaign: "GreenTech Renewables Bhd", slug: "/equity/greentech-renewables", status: "ok" },
+    { date: "02 Jul 2026", time: "04:40 PM", event: "Buy", trade: "buy", amount: -1030, ticker: "MYTECH", status: "ok", statusLabel: "Completed", action: true },
+    { date: "30 Jun 2026", time: "11:02 AM", event: "Top up", amount: 5000, status: "ok" },
+    { date: "28 Jun 2026", time: "10:20 AM", event: "Sell", trade: "sell", amount: 820, ticker: "AGROFRESH", status: "ok", statusLabel: "Completed", action: true }
+  ];
+  function eventKey(r) { return r.trade ? (r.trade === "buy" ? "Buy" : "Sell") : r.event; }
+  function statusKey(r) { return r.statusLabel === "Completed" ? "Completed" : r.status === "pend" ? "Pending" : "Approved"; }
+
+  var EVENT_OPTIONS = [
+    { key: "Withdrawal", label: "Withdrawal" },
+    { key: "Top up", label: "Top up" },
+    { key: "Buy", label: "Buy" },
+    { key: "Sell", label: "Sell" },
+    { key: "ECF investment", label: "ECF investment", isNew: true }
+  ];
+  var STATUS_OPTIONS = [
+    { key: "Pending", label: "Pending" },
+    { key: "Approved", label: "Approved" },
+    { key: "Completed", label: "Completed" },
+    { key: "Failed", label: "Failed" }
+  ];
+
+  var filterState = { events: new Set(["All"]), statuses: new Set(["All"]) };
+  // drafts, live-edited while a menu is open; committed on Apply
+  var draft = { events: new Set(filterState.events), statuses: new Set(filterState.statuses) };
+
+  function toggleSetOption(set, allOptions, key) {
+    if (key === "All") { set.clear(); set.add("All"); return; }
+    set.delete("All");
+    if (set.has(key)) set.delete(key); else set.add(key);
+    if (set.size === 0) set.add("All");
+  }
+
+  function passesFilter(r) {
+    var evOk = filterState.events.has("All") || filterState.events.has(eventKey(r));
+    var stOk = filterState.statuses.has("All") || filterState.statuses.has(statusKey(r));
+    return evOk && stOk;
+  }
+
+  /* =============== Balance on Hold (Phase 2.1, unchanged) =============== */
+  var BUCKETS = [
+    { key: "pstx", label: "PSTX Open Orders", title: "PSTX Open Orders on hold", cta: "View all on PSTX Orders", unit: "orders",
+      items: [ { primary: "MYTECH", secondary: "Buy order · 02 Jul 2026", amount: 1030 }, { primary: "KOPI", secondary: "Buy order · 01 Jul 2026", amount: 500 } ] },
+    { key: "wd", label: "Withdrawal requests", title: "Withdrawal requests on hold", cta: "View withdrawal requests", unit: "requests",
+      items: [ { primary: "WD-20260708", secondary: "Requested 08 Jul 2026 · Pending", amount: 250 } ] },
+    { key: "ecf", label: "ECF investment", title: "ECF investments on hold", cta: "View all in ECF Investments", unit: "investments",
+      items: [ { primary: "Kombucha Co Sdn Bhd", secondary: "Paid · 28 Jun 2026", amount: 500 }, { primary: "UrbanFarm Ventures", secondary: "Paid · 15 Jun 2026", amount: 500 } ] }
+  ];
+  var sub = function (b) { return b.items.reduce(function (s, i) { return s + i.amount; }, 0); };
+  var HOLD_TOTAL = BUCKETS.reduce(function (s, b) { return s + sub(b); }, 0);
+
+  function drilldown(b) {
+    var w = el("div");
+    var head = el("div", "dd-head");
+    head.appendChild(el("span", "dd-title", b.title));
+    head.appendChild(el("span", "dd-count", b.items.length + " " + b.unit));
+    var x = el("button", "dd-x", "&times;"); x.type = "button"; x.setAttribute("aria-label", "Close"); x.dataset.close = "1";
+    head.appendChild(x); w.appendChild(head);
+    var list = el("div", "dd-list");
+    b.items.forEach(function (it) {
+      var r = el("div", "dd-row");
+      var l = el("div", "dd-left");
+      l.appendChild(el("span", "dd-primary", it.primary));
+      l.appendChild(el("span", "dd-secondary", it.secondary));
+      r.appendChild(l); r.appendChild(el("span", "dd-amt", RMPlain(it.amount)));
+      list.appendChild(r);
+    });
+    w.appendChild(list);
+    var link = el("button", "dd-link", b.cta + " &rarr;"); link.type = "button";
+    w.appendChild(link);
+    return w;
+  }
+
+  function accountCard() {
+    var c = el("div", "p-card");
+    c.appendChild(el("div", "p-title", "Account balance"));
+    c.appendChild(el("div", "p-headline", RMPlain(8290)));
+    c.appendChild(el("div", "p-sub", "Available to trade or withdraw"));
+    return c;
+  }
+
+  function holdCard(mobile, sheetHost) {
+    var card = el("div", "hold-card");
+    var head = el("div", "hold-head");
+    head.appendChild(el("span", "p-title", "Balance on Hold"));
+    head.appendChild(el("span", "hold-info", "i"));
+    card.appendChild(head);
+    card.appendChild(el("div", "p-headline", RMPlain(HOLD_TOTAL)));
+    card.appendChild(el("hr", "hold-rule"));
+    var rows = el("div", "hold-rows");
+    BUCKETS.forEach(function (b) {
+      var amount = sub(b);
+      var anchor = el("div", "hold-anchor");
+      var btn = el("button", "hold-row"); btn.type = "button";
+      btn.setAttribute("aria-expanded", "false");
+      var label = el("span", "hold-row__label");
+      label.innerHTML = CHEV + "<span>" + b.label + "</span>";
+      btn.appendChild(label);
+      btn.appendChild(el("span", "hold-row__amt", RMPlain(amount)));
+      anchor.appendChild(btn);
+      if (!mobile) {
+        var pop = el("div", "hold-pop"); pop.appendChild(drilldown(b)); anchor.appendChild(pop);
+        btn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var isOpen = pop.classList.contains("open");
+          rows.querySelectorAll(".hold-pop.open").forEach(function (p) { p.classList.remove("open"); });
+          rows.querySelectorAll('.hold-row[aria-expanded="true"]').forEach(function (r) { r.setAttribute("aria-expanded", "false"); });
+          if (!isOpen) { pop.classList.add("open"); btn.setAttribute("aria-expanded", "true"); }
+        });
+        pop.addEventListener("click", function (e) { if (e.target.dataset && e.target.dataset.close) { pop.classList.remove("open"); btn.setAttribute("aria-expanded", "false"); } });
+      } else {
+        btn.addEventListener("click", function (e) { e.stopPropagation(); sheetHost.open(b); });
+      }
+      rows.appendChild(anchor);
+    });
+    card.appendChild(rows);
+    return card;
+  }
+
+  /* =============== column-header filter menu =============== */
+  function buildFilterMenu(kind) {
+    var isEvent = kind === "events";
+    var options = isEvent ? EVENT_OPTIONS : STATUS_OPTIONS;
+    var menu = el("div", "filter-menu");
+    menu.appendChild(el("div", "filter-menu__title", isEvent ? "Event filters" : "Status filters"));
+    var allRow = el("div", "filter-menu__check");
+    var allCb = el("input"); allCb.type = "checkbox"; allCb.id = kind + "-all";
+    var allLbl = el("label", null, "All"); allLbl.htmlFor = allCb.id;
+    allRow.appendChild(allCb); allRow.appendChild(allLbl); menu.appendChild(allRow);
+    var optRows = [];
+    options.forEach(function (o) {
+      var row = el("div", "filter-menu__check");
+      var cb = el("input"); cb.type = "checkbox"; cb.id = kind + "-" + o.key.replace(/\s+/g, "");
+      var lbl = el("label", null, o.label + (o.isNew ? ' <span class="filter-menu__new">New</span>' : "")); lbl.htmlFor = cb.id;
+      row.appendChild(cb); row.appendChild(lbl); menu.appendChild(row);
+      optRows.push({ key: o.key, cb: cb });
+    });
+    var actions = el("div", "filter-menu__actions");
+    var clearBtn = el("button", "filter-menu__clear", "Clear"); clearBtn.type = "button";
+    var applyBtn = el("button", "filter-menu__apply", "Apply"); applyBtn.type = "button";
+    actions.appendChild(clearBtn); actions.appendChild(applyBtn); menu.appendChild(actions);
+
+    function sync() {
+      var set = draft[kind];
+      allCb.checked = set.has("All");
+      optRows.forEach(function (o) { o.cb.checked = set.has(o.key); });
+    }
+    allCb.addEventListener("change", function () { toggleSetOption(draft[kind], options, "All"); sync(); });
+    optRows.forEach(function (o) {
+      o.cb.addEventListener("change", function () { toggleSetOption(draft[kind], options, o.key); sync(); });
+    });
+    clearBtn.addEventListener("click", function () {
+      draft[kind] = new Set(["All"]); filterState[kind] = new Set(["All"]); sync(); renderAll(); closeMenus();
+    });
+    applyBtn.addEventListener("click", function () {
+      filterState[kind] = new Set(draft[kind]); renderAll(); closeMenus();
+    });
+    menu._sync = sync;
+    return menu;
+  }
+
+  var openMenus = [];
+  function closeMenus() { openMenus.forEach(function (m) { m.classList.remove("open"); }); }
+
+  function headerFilterCell(kind, label) {
+    var wrap = el("div");
+    var trig = el("div", "col-filter");
+    trig.innerHTML = "<span>" + label + "</span><span class='col-filter__icon'>▽</span>";
+    var countPill = null;
+    if (!filterState[kind].has("All")) { countPill = el("span", "active-filter-pill", filterState[kind].size); trig.appendChild(countPill); }
+    var menu = buildFilterMenu(kind);
+    trig.addEventListener("click", function (e) {
+      e.stopPropagation();
+      draft[kind] = new Set(filterState[kind]); menu._sync();
+      var willOpen = !menu.classList.contains("open");
+      closeMenus();
+      if (willOpen) menu.classList.add("open");
+    });
+    wrap.appendChild(trig); wrap.appendChild(menu);
+    openMenus.push(menu);
+    return wrap;
+  }
+
+  /* =============== desktop table =============== */
+  function eventCellHtml(r) {
+    var tag = r.phase === "2.2" ? '<span class="ptag p22">2.2</span>' : '';
+    var badgeHtml = r.trade ? '<span class="order-badge ' + r.trade + '">PSTX ' + (r.trade === "buy" ? "BUY" : "SELL") + '</span>' : '';
+    var h = '<span class="tx-event">' + r.event + '</span>' + badgeHtml + tag;
+    if (r.sub) h += '<div class="tx-sub" style="font-size:11.5px;color:var(--muted);font-style:italic;margin-top:2px;">' + r.sub + '</div>';
+    return h;
+  }
+  function counterCellHtml(r) {
+    if (r.ticker) return '<a class="counter-link ticker" href="/pstx/' + r.ticker.toLowerCase() + '" onclick="__navDemo(\'/pstx/' + r.ticker.toLowerCase() + '\', event)">' + r.ticker + '</a>';
+    if (r.campaign) return '<a class="counter-link" href="' + r.slug + '" onclick="__navDemo(\'' + r.slug + '\', event)">' + r.campaign + '</a>';
+    return '<span class="counter-dash">—</span>';
+  }
+  function badgeHtml(r) {
+    var lbl = r.statusLabel || "Approved";
+    return '<span class="badge ok">' + lbl + '</span>';
+  }
+  function rowClass(r) { return r.phase === "2.2" ? "new22" : ""; }
+
+  function buildDesktopShell() {
+    var app = el("div", "app");
+    var nav = el("div", "topnav");
+    nav.appendChild(el("a", "logo", LOGO));
+    nav.appendChild(el("div", "navlinks", '<a>Campaigns</a><a class="ecf">ECF Investments</a><a class="active">PSTX Account</a><a>Portfolio</a>'));
+    nav.appendChild(el("div", "spacer"));
+    nav.appendChild(el("div", "avatar", "IN"));
+    app.appendChild(nav);
+
+    var page = el("div", "page");
+    page.appendChild(el("div", "page-head", '<h2>PSTX Account</h2><span class="pstx-badge">PSTX</span>'));
+
+    var cards = el("div", "cards");
+    cards.appendChild(accountCard());
+    cards.appendChild(holdCard(false));
+    page.appendChild(cards);
+
+    page.appendChild(el("div", "txn-head", "<h3>Transaction history</h3>"));
+
+    var scroll = el("div", "tx-scroll");
+    var t = el("table", "tx");
+    var thead = el("thead");
+    var htr = el("tr");
+    htr.appendChild(el("th", null, "Date"));
+    var evTh = el("th"); evTh.appendChild(headerFilterCell("events", "Event")); htr.appendChild(evTh);
+    htr.appendChild(el("th", "r", "Amount"));
+    htr.appendChild(el("th", null, "Counter / Campaign"));
+    var stTh = el("th"); stTh.appendChild(headerFilterCell("statuses", "Status")); htr.appendChild(stTh);
+    htr.appendChild(el("th", null, "Actions"));
+    thead.appendChild(htr); t.appendChild(thead);
+    var tb = el("tbody"); tb.id = "tx-tbody";
+    t.appendChild(tb); scroll.appendChild(t); page.appendChild(scroll);
+    app.appendChild(page);
+    app.__tbody = tb;
+    return app;
+  }
+
+  function renderDesktopRows(app) {
+    var tb = app.__tbody; tb.innerHTML = "";
+    var rows = TX.filter(passesFilter);
+    if (!rows.length) {
+      var tr = el("tr"); var td = el("td"); td.colSpan = 6; td.style.textAlign = "center"; td.style.color = "var(--muted)"; td.style.padding = "26px"; td.textContent = "No transactions match the selected filters.";
+      tr.appendChild(td); tb.appendChild(tr); return;
+    }
+    rows.forEach(function (r) {
+      var tr = el("tr", rowClass(r));
+      tr.appendChild(el("td", "tx-date", r.date + "<span>" + r.time + "</span>"));
+      tr.appendChild(el("td", null, eventCellHtml(r)));
+      tr.appendChild(el("td", "r", '<span class="tx-amt ' + (r.amount < 0 ? "debit" : "credit") + '">' + RM(r.amount) + '</span>'));
+      tr.appendChild(el("td", null, counterCellHtml(r)));
+      tr.appendChild(el("td", null, badgeHtml(r)));
+      tr.appendChild(el("td", null, r.action ? '<span class="view">View</span>' : '<span class="view off">—</span>'));
+      tb.appendChild(tr);
+    });
+  }
+
+  /* =============== mobile ("card list", matches .wallet-tx-card) =============== */
+  function buildMobileCard(r) {
+    var card = el("div", "txc " + rowClass(r));
+    var sumEl = el("div", "txc__sum");
+    var main = el("div", "txc__main");
+    var title = el("div", "txc__title");
+    if (r.trade) {
+      title.innerHTML = '<span class="txc__ticker">' + r.ticker + '</span><span class="order-badge ' + r.trade + '">PSTX ' + (r.trade === "buy" ? "BUY" : "SELL") + '</span>';
+    } else {
+      var tag = r.phase === "2.2" ? '<span class="ptag p22">2.2</span>' : '';
+      title.innerHTML = '<span class="txc__event">' + r.event + '</span>' + tag;
+    }
+    main.appendChild(title);
+    main.appendChild(el("div", "txc__meta", r.date + " · " + r.time));
+    main.appendChild(el("div", null, badgeHtml(r)));
+    sumEl.appendChild(main);
+    var right = el("div", "txc__right");
+    right.appendChild(el("div", "txc__amt " + (r.amount < 0 ? "debit" : "credit"), RM(r.amount)));
+    sumEl.appendChild(right);
+    card.appendChild(sumEl);
+    if (r.action) {
+      var act = el("div", "txc__actions");
+      act.innerHTML = '<button class="action-btn">View details</button>';
+      card.appendChild(act);
+    }
+    return card;
+  }
+
+  function buildMobileShell() {
+    var phone = el("div");
+    phone.appendChild(el("div", "phone__notch"));
+    var nav = el("div", "phone__nav");
+    nav.appendChild(el("div", "logo", LOGO));
+    nav.appendChild(el("div", "spacer"));
+    nav.appendChild(el("div", null, '<div class="avatar" style="width:28px;height:28px;">IN</div>'));
+    phone.appendChild(nav);
+
+    var scroll = el("div", "phone__scroll");
+    scroll.appendChild(el("div", "page-head", '<h2>PSTX Account</h2><span class="pstx-badge">PSTX</span>'));
+    scroll.appendChild(accountCard());
+
+    var backdrop = el("div", "sheet-backdrop");
+    var sheet = el("div", "sheet");
+    var sheetBody = el("div"); sheet.appendChild(el("div", "sheet__grab")); sheet.appendChild(sheetBody);
+    var host = {
+      open: function (b) { sheetBody.innerHTML = ""; sheetBody.appendChild(drilldown(b)); backdrop.classList.add("open"); sheet.classList.add("open"); },
+      close: function () { backdrop.classList.remove("open"); sheet.classList.remove("open"); }
+    };
+    backdrop.addEventListener("click", host.close);
+    sheet.addEventListener("click", function (e) { if (e.target.dataset && e.target.dataset.close) host.close(); });
+
+    scroll.appendChild(holdCard(true, host));
+    scroll.appendChild(el("div", null, '<div style="font-size:15px;font-weight:600;margin:16px 0 8px;">Transaction history</div>'));
+    var list = el("div", "txn-cards"); list.id = "txn-cards";
+    scroll.appendChild(list);
+    phone.appendChild(scroll);
+    phone.appendChild(backdrop);
+    phone.appendChild(sheet);
+    phone.__list = list;
+    return phone;
+  }
+
+  function renderMobileCards(phone) {
+    var list = phone.__list; list.innerHTML = "";
+    var rows = TX.filter(passesFilter);
+    if (!rows.length) { list.appendChild(el("div", null, '<div style="text-align:center;color:var(--muted);font-size:13px;padding:20px 0;">No transactions match the selected filters.</div>')); return; }
+    rows.forEach(function (r) { list.appendChild(buildMobileCard(r)); });
+  }
+
+  /* =============== mount =============== */
+  var desktopApp, mobilePhone;
+  function renderAll() {
+    renderDesktopRows(desktopApp);
+    renderMobileCards(mobilePhone);
+  }
+
+  desktopApp = buildDesktopShell();
+  document.getElementById("desktopApp").appendChild(desktopApp);
+  mobilePhone = buildMobileShell();
+  document.getElementById("mobileApp").appendChild(mobilePhone);
+  renderAll();
+
+  document.addEventListener("click", function () {
+    closeMenus();
+    document.querySelectorAll(".hold-pop.open").forEach(function (p) { p.classList.remove("open"); });
+    document.querySelectorAll('.hold-row[aria-expanded="true"]').forEach(function (r) { r.setAttribute("aria-expanded", "false"); });
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      closeMenus();
+      document.querySelectorAll(".hold-pop.open").forEach(function (p) { p.classList.remove("open"); });
+      document.querySelectorAll('.sheet.open, .sheet-backdrop.open').forEach(function (s) { s.classList.remove("open"); });
+    }
+  });
+})();
+</script>
