@@ -1,0 +1,602 @@
+<!-- PROTOTYPE — ECF Investment · End-to-end lifecycle simulator
+     Investor journey from checkout (any payment method) → campaign stages (PreLive · Live ·
+     Cooling-off · Share Allotment · Success/Failed) → terminal money movement.
+     MODEL: every ECF payment routes THROUGH the wallet. Wallet-funded = reserve existing money.
+     External payment = the confirmed payment TOPS UP the wallet (one Top up credit row), then is
+     immediately locked as an ECF hold. So the ECF-investment line appears in Balance On Hold for
+     every pledge, and the wallet figures stay honest (no display-only money). Money invariants:
+       • Checkout hold          LockedAmount ↑ ; wallet-funded Balance = (no row) ;
+                                external Balance ↑ (one Top up credit row) then held
+       • Refund = release       LockedAmount ↓, Balance =, Available ↑, NO row — audit only
+       • Allotment (permanent)  Balance ↓ AND LockedAmount ↓, ONE debit row (event = Invest)
+       • Refund eligible ONLY while campaign is PreLive / Live / Cooling-off (pre-allotment)
+     Throwaway reference for design & dev hand-off. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ECF Investment — End-to-end lifecycle</title>
+<style>
+  :root {
+    --primary: #BF2026; --primary-light: #FEE2E3;
+    --secondary: #006937; --secondary-light: #0A994A;
+    --ink: #101828; --muted: #6a6a6a; --label: #7f7f7f;
+    --hair: #eaecf0; --hover: #f9fafb; --bg: #eef0f3; --dark: #0f1729; --faint: #8a93a3;
+    --ok-tx:#027a48; --ok-bg:#ecfdf3; --ok-dot:#12b76a;
+    --pend-tx:#c4320a; --pend-bg:#fff6ed; --pend-dot:#fb6514;
+    --info-tx:#175cd3; --info-bg:#eff8ff; --info-dot:#2e90fa;
+    --red-tx:#b42318; --red-bg:#fef3f2; --red-dot:#f04438;
+    --mono: ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+  @media (prefers-reduced-motion: reduce){ * { transition:none !important; } }
+
+  .topbar { background:var(--dark); color:#fff; padding:15px 22px; }
+  .topbar .in { max-width:1180px; margin:0 auto; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .topbar h1 { margin:0; font-size:16px; font-weight:600; letter-spacing:-.01em; }
+  .topbar h1 span { color:#8ea2c4; font-weight:500; }
+  .topbar .spacer { flex:1; }
+  .legend { display:flex; gap:7px; flex-wrap:wrap; }
+  .lg { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; padding:4px 9px; border-radius:7px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); color:#d7dce6; }
+  .lg b { color:#fff; }
+
+  .stage { max-width:1180px; margin:0 auto; padding:22px 22px 64px; }
+
+  /* ============ SECTION 1 — director / drive the scenario (first) ============ */
+  .director { background:var(--dark); color:#e8ecf3; border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(16,24,40,.18); border:1px solid rgba(255,255,255,.06); }
+  .director .d-head { padding:16px 20px; border-bottom:1px solid rgba(255,255,255,.09); font-size:14px; font-weight:700; letter-spacing:.02em; display:flex; align-items:center; gap:8px; }
+  .director .d-head .k { font-size:10.5px; font-weight:700; color:#8ea2c4; text-transform:uppercase; letter-spacing:.08em; margin-left:auto; }
+
+  .state-banner { display:flex; gap:0; flex-wrap:wrap; }
+  .sb { flex:1; min-width:200px; padding:16px 20px; }
+  .sb + .sb { border-left:1px solid rgba(255,255,255,.09); }
+  .sb .sb-lbl { font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:#8ea2c4; font-weight:700; }
+  .sb .sb-val { font-size:20px; font-weight:700; color:#fff; margin-top:6px; display:flex; align-items:center; gap:9px; }
+  .dot2 { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .sb .sb-sub { font-size:12px; color:#9aa4b4; margin-top:3px; font-weight:500; }
+
+  .fp-wrap { padding:16px 20px 0; border-top:1px solid rgba(255,255,255,.09); }
+  .fp-label { font-size:11px; font-weight:700; color:#8ea2c4; text-transform:uppercase; letter-spacing:.06em; margin-bottom:9px; }
+  .fp-chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .fp-chip { border:1.5px solid rgba(255,255,255,.18); background:rgba(255,255,255,.045); color:#d7dce6; border-radius:20px; padding:7px 14px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit; transition:.12s; }
+  .fp-chip:hover { background:rgba(255,255,255,.11); border-color:rgba(255,255,255,.3); }
+  .fp-chip.sel { background:var(--secondary-light); border-color:var(--secondary-light); color:#fff; }
+  .fp-hint { font-size:11.5px; color:#8ea2c4; margin-top:9px; }
+
+  .actions-hint { padding:16px 20px 6px; font-size:11px; font-weight:700; color:#8ea2c4; text-transform:uppercase; letter-spacing:.07em; }
+  .actions { padding:6px 20px 16px; display:flex; flex-direction:column; gap:10px; }
+  .act { display:flex; align-items:center; gap:12px; width:100%; text-align:left; border:1.5px solid rgba(255,255,255,.18); background:rgba(255,255,255,.055); color:#fff; border-radius:11px; padding:13px 15px; font-size:14px; font-weight:650; cursor:pointer; font-family:inherit; transition:.13s; box-shadow:0 1px 0 rgba(255,255,255,.03) inset; }
+  .act:hover { background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.34); transform:translateX(2px); }
+  .act:focus-visible { outline:2px solid #7ee0a3; outline-offset:2px; }
+  .act .ico { width:26px; height:26px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; background:rgba(255,255,255,.09); }
+  .act .go { margin-left:auto; opacity:.5; font-size:15px; flex-shrink:0; }
+  .act.primary { background:var(--secondary-light); border-color:var(--secondary-light); } .act.primary:hover{ background:#0bb056; }
+  .act.primary .ico { background:rgba(255,255,255,.22); }
+  .act.step .ico { background:rgba(46,144,250,.28); color:#bfe0ff; }
+  .act.danger { border-color:rgba(240,68,56,.55); } .act.danger .ico { background:rgba(240,68,56,.28); color:#ffb4ad; } .act.danger:hover{ background:rgba(240,68,56,.2); }
+  .act.ghost { background:transparent; color:#aeb7c6; border-style:dashed; box-shadow:none; }
+  .act.disabled { opacity:.4; cursor:not-allowed; }
+  .act.disabled:hover { transform:none; background:rgba(255,255,255,.055); border-color:rgba(255,255,255,.18); }
+  .act .sub { display:block; font-size:11.5px; font-weight:500; color:#9aa4b4; margin-top:2px; }
+  .act.primary .sub { color:rgba(255,255,255,.88); }
+
+  .log { border-top:1px solid rgba(255,255,255,.09); padding:15px 20px 18px; }
+  .log h4 { margin:0 0 10px; font-size:10.5px; font-weight:700; color:#8ea2c4; text-transform:uppercase; letter-spacing:.08em; }
+  .log-list { display:flex; flex-direction:column; gap:9px; max-height:260px; overflow-y:auto; }
+  .le { font-size:12.5px; line-height:1.45; color:#cdd4de; padding-left:15px; position:relative; }
+  .le::before { content:""; position:absolute; left:0; top:6px; width:6px; height:6px; border-radius:50%; background:#3b4757; }
+  .le.money::before { background:var(--secondary-light); }
+  .le.debit::before { background:#ff8a8f; }
+  .le.warn::before { background:var(--pend-dot); }
+  .le b { color:#fff; } .le .mono { font-family:var(--mono); font-size:11.5px; color:#9ff0c4; }
+  .le .lt { display:block; font-size:10.5px; color:#6b7688; margin-top:1px; }
+  .le-empty { font-size:12.5px; color:#6b7688; }
+
+  /* ============ SECTION 2 — campaign stepper ============ */
+  .stepper-card { margin-top:18px; background:#fff; border:1px solid var(--hair); border-radius:14px; padding:18px 22px; box-shadow:0 6px 22px rgba(16,24,40,.07); }
+  .stepper-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; flex-wrap:wrap; }
+  .stepper-head h2 { margin:0; font-size:14px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--label); }
+  .camp-name { font-size:13px; color:var(--muted); }
+  .camp-name b { color:var(--ink); }
+  .stepper-sub { font-size:13px; color:var(--muted); margin:2px 0 16px; }
+  .stepper-sub b { color:var(--secondary); font-weight:700; }
+  .steps { display:flex; align-items:flex-start; gap:0; }
+  .step { flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; position:relative; text-align:center; cursor:default; }
+  .step:not(:last-child)::after { content:""; position:absolute; top:15px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:var(--hair); z-index:0; }
+  .step.done:not(:last-child)::after { background:var(--secondary-light); }
+  .dot { width:32px; height:32px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; background:#fff; border:2px solid var(--hair); color:var(--faint); z-index:1; transition:.2s; cursor:default; }
+  .step.done .dot { background:var(--secondary-light); border-color:var(--secondary-light); color:#fff; }
+  .step.active .dot { border-color:var(--secondary); color:var(--secondary); box-shadow:0 0 0 5px var(--ok-bg); }
+  .step.fail .dot { background:var(--primary); border-color:var(--primary); color:#fff; }
+  .step-label { font-size:12px; font-weight:600; color:var(--muted); cursor:default; }
+  .step.active .step-label { color:var(--ink); font-weight:700; }
+  .step.fail .step-label { color:var(--primary); }
+  .fail-banner { margin-top:14px; display:none; align-items:center; gap:8px; background:var(--red-bg); color:var(--red-tx); border:1px solid #fecdca; border-radius:10px; padding:9px 14px; font-size:13px; font-weight:600; }
+  .fail-banner.show { display:flex; }
+
+  /* ============ SECTION 3 — investor CustomerWeb views ============ */
+  .inv-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:18px; }
+  .inv-grid .full { grid-column: 1 / -1; }
+  @media (max-width:860px){ .inv-grid { grid-template-columns:1fr; } }
+
+  .card { background:#fff; border:1px solid var(--hair); border-radius:14px; box-shadow:0 6px 22px rgba(16,24,40,.06); overflow:hidden; }
+  .card__head { display:flex; align-items:center; gap:10px; padding:15px 18px; border-bottom:1px solid var(--hair); }
+  .card__head .logo svg { height:20px; width:auto; display:block; }
+  .card__head h3 { margin:0; font-size:14px; font-weight:700; }
+  .card__head .tag { font-size:9.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#fff; background:linear-gradient(90deg,var(--secondary),var(--secondary-light)); padding:3px 8px; border-radius:5px; }
+  .card__head .tag.cw { background:#eef1f4; color:var(--muted); }
+  .card__body { padding:16px 18px; }
+
+  /* ---- ECF investment card ---- */
+  .inv-empty { display:flex; align-items:center; gap:13px; padding:6px 2px 4px; }
+  .ie-ico { width:42px; height:42px; border-radius:10px; background:var(--hover); border:1.5px dashed #d0d5dd; display:flex; align-items:center; justify-content:center; font-size:19px; color:var(--faint); flex-shrink:0; }
+  .ie-txt b { display:block; font-size:14.5px; color:var(--ink); font-weight:700; }
+  .ie-txt span { font-size:12px; color:var(--muted); }
+
+  .inv-top { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .inv-amt { font-size:26px; font-weight:700; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+  .inv-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+  .badge { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; border-radius:16px; padding:3px 10px; white-space:nowrap; }
+  .badge::before { content:""; width:7px; height:7px; border-radius:50%; }
+  .badge .k { font-weight:500; color:inherit; opacity:.7; margin-right:1px; }
+  .b-ok { color:var(--ok-tx); background:var(--ok-bg);} .b-ok::before{background:var(--ok-dot);}
+  .b-pend { color:var(--pend-tx); background:var(--pend-bg);} .b-pend::before{background:var(--pend-dot);}
+  .b-info { color:var(--info-tx); background:var(--info-bg);} .b-info::before{background:var(--info-dot);}
+  .b-red { color:var(--red-tx); background:var(--red-bg);} .b-red::before{background:var(--red-dot);}
+  .b-grey { color:#475467; background:#f2f4f7;} .b-grey::before{background:#98a2b3;}
+
+  .fund-note { margin-top:12px; font-size:11.5px; color:var(--muted); background:var(--hover); border:1px solid var(--hair); border-radius:8px; padding:8px 11px; }
+  .fund-note b { color:var(--ink); }
+
+  /* investment status mini-stepper */
+  .inv-flow { display:flex; align-items:center; gap:0; margin-top:16px; padding-top:14px; border-top:1px solid var(--hair); }
+  .fl { flex:1; text-align:center; font-size:10.5px; font-weight:600; color:var(--faint); position:relative; padding-top:16px; }
+  .fl::before { content:""; position:absolute; top:4px; left:50%; transform:translateX(-50%); width:9px; height:9px; border-radius:50%; background:var(--hair); }
+  .fl:not(:last-child)::after { content:""; position:absolute; top:8px; left:calc(50% + 8px); right:calc(-50% + 8px); height:2px; background:var(--hair); }
+  .fl.on { color:var(--ink); } .fl.on::before { background:var(--secondary-light); }
+  .fl.on:not(:last-child)::after { background:var(--secondary-light); }
+  .fl.cur::before { box-shadow:0 0 0 3px var(--ok-bg); }
+  .fl.refund.on { color:var(--pend-tx);} .fl.refund.on::before{ background:var(--pend-dot);}
+
+  /* ---- wallet ---- */
+  .wallet-tiles { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .tile { border:1px solid var(--hair); border-radius:11px; padding:13px 15px; }
+  .tile .t-lbl { font-size:12px; color:var(--label); display:flex; align-items:center; gap:6px; }
+  .tile .t-val { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:3px; letter-spacing:-.01em; }
+  .tile.flash { animation:flash .9s ease; }
+  @keyframes flash { 0%{ background:var(--ok-bg);} 100%{ background:#fff;} }
+  .hold-break { margin-top:12px; border:1px dashed var(--hair); border-radius:11px; padding:6px 6px; }
+  .hbrow { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:8px; font-size:13px; }
+  .hbrow + .hbrow { border-top:1px solid var(--hair); }
+  .hbrow .l { color:var(--muted); display:flex; align-items:center; gap:8px; }
+  .hbrow .a { font-weight:600; font-variant-numeric:tabular-nums; }
+  .hbrow.ecf .l { color:var(--secondary); font-weight:600; }
+  .hbrow.ecf.gone { opacity:.4; }
+  .pin { width:7px; height:7px; border-radius:50%; background:#98a2b3; } .hbrow.ecf .pin{ background:var(--secondary-light); }
+
+  /* ---- txn table ---- */
+  table.tx { width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.tx th { text-align:left; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--label); padding:9px 8px; border-bottom:1px solid var(--hair); }
+  table.tx th.r, table.tx td.r { text-align:right; }
+  table.tx td { padding:11px 8px; border-bottom:1px solid var(--hair); vertical-align:middle; }
+  table.tx tr:last-child td { border-bottom:0; }
+  .tx-ev { font-weight:600; } .tx-d { font-size:11px; color:var(--muted); }
+  .tx-amt { font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+  .tx-amt.debit { color:var(--primary);} .tx-amt.credit { color:var(--secondary-light);}
+  .tx-new td { background:#fffaf3; animation:flash 1s ease; }
+  .no-row-note { margin-top:10px; font-size:11.5px; color:var(--muted); background:var(--hover); border:1px solid var(--hair); border-radius:8px; padding:8px 11px; display:flex; gap:7px; }
+  .no-row-note b { color:var(--ink); }
+
+  /* ============ SECTION 4 — rules ============ */
+  .rules { margin-top:18px; background:#fff; border:1px solid var(--hair); border-radius:14px; padding:16px 20px; box-shadow:0 6px 22px rgba(16,24,40,.06); }
+  .rules h4 { margin:0 0 10px; font-size:13px; font-weight:700; }
+  .rlist { display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; }
+  @media (max-width:720px){ .rlist { grid-template-columns:1fr; } }
+  .rlist > div { font-size:12.5px; color:#2d3646; padding-left:15px; position:relative; line-height:1.5; }
+  .rlist > div::before { content:""; position:absolute; left:2px; top:7px; width:5px; height:5px; border-radius:50%; background:var(--secondary-light); }
+  .rlist .mono { font-family:var(--mono); font-size:11.5px; background:#f4f6f8; border:1px solid var(--hair); border-radius:4px; padding:0 5px; }
+</style>
+
+<div class="topbar">
+  <div class="in">
+    <div class="logo" id="topLogo"></div>
+    <h1>ECF Investment <span>· end-to-end lifecycle simulator</span></h1>
+    <div class="spacer"></div>
+    <div class="legend">
+      <span class="lg">Every pledge → <b>wallet hold</b></span>
+      <span class="lg">Refund = release <b>no row</b></span>
+      <span class="lg">Allotment → <b>Invest debit</b></span>
+      <span class="lg">External <b>tops up</b> then holds</span>
+    </div>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- SECTION 1: drive the scenario — FIRST -->
+  <div class="director">
+    <div class="d-head">▶ Drive the scenario <span class="k">click an action below</span></div>
+    <div class="state-banner" id="stateBanner"></div>
+    <div class="fp-wrap" id="fundingPicker"></div>
+    <div class="actions-hint" id="actionsHint">Next actions</div>
+    <div class="actions" id="actions"></div>
+    <div class="log">
+      <h4>What happened to the money</h4>
+      <div class="log-list" id="logList"></div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: campaign stepper -->
+  <div class="stepper-card">
+    <div class="stepper-head">
+      <h2>Campaign lifecycle</h2>
+      <div class="camp-name">Campaign: <b>GreenTech Renewables Bhd</b> · pledge <b>RM 1,000.00</b></div>
+    </div>
+    <div class="stepper-sub" id="stepperSub"></div>
+    <div class="steps" id="steps"></div>
+    <div class="fail-banner" id="failBanner">✕ Campaign failed / cancelled — every confirmed ECF pledge (any payment method) is auto-refunded to the investor's wallet.</div>
+  </div>
+
+  <!-- SECTION 3: investor CustomerWeb views -->
+  <div class="inv-grid">
+    <div class="card">
+      <div class="card__head"><div class="logo" id="invLogo"></div><h3>ECF Investment</h3><span class="tag cw">CustomerWeb</span></div>
+      <div class="card__body" id="invBody"></div>
+    </div>
+    <div class="card">
+      <div class="card__head"><h3>PSTX Account — Wallet</h3><span class="tag">PSTX</span></div>
+      <div class="card__body" id="walletBody"></div>
+    </div>
+    <div class="card full">
+      <div class="card__head"><h3>Transaction history</h3></div>
+      <div class="card__body" id="txnBody"></div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: rules -->
+  <div class="rules">
+    <h4>Money invariants this prototype enforces</h4>
+    <div class="rlist">
+      <div><b>Checkout — the pledge becomes a wallet hold.</b> <span class="mono">Wallet</span>: reserve existing money (<span class="mono">LockedAmount ↑</span>, no row). <b>External payment</b>: tops up the wallet (<span class="mono">Balance ↑</span>, one <b>Top up</b> credit row) and immediately holds it.</div>
+      <div><b>Balance On Hold shows the ECF line for every pledge</b> — all ECF money now sits in the wallet as a real hold, so the On Hold total, Total wallet value and Withdrawable all stay honest (no display-only money).</div>
+      <div><b>Refund = release.</b> <span class="mono">LockedAmount ↓</span>, <span class="mono">Balance =</span>, Available ↑ — money moves from on-hold back to spendable inside the wallet. <b>No transaction row</b> on any path; audit entry only. (Wallet or external, the mechanic is identical.)</div>
+      <div><b>Allotment</b> (point of no return) — <span class="mono">Balance ↓</span> and <span class="mono">LockedAmount ↓</span>, one <b>Invest</b> debit row. Refund refused once <b>Share Allotment / Success</b>; eligible only in <b>PreLive / Live / Cooling-off</b>.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var LOGO = '<svg viewBox="0 0 307 190" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M264.594 143.67C262.279 143.67 259.415 143.285 257.791 140.296L246.318 119.398V139.456C246.318 142.352 243.057 143.67 240.027 143.67C236.997 143.67 233.735 142.352 233.735 139.456V95.5063C233.735 92.597 236.897 91.293 240.027 91.293C244.155 91.293 245.979 91.7996 248.775 97.173L258.306 115.35V95.4356C258.306 92.921 260.775 91.293 264.594 91.293C268.417 91.293 270.887 92.921 270.887 95.4356V139.456C270.887 142.352 267.625 143.67 264.594 143.67Z" fill="#206633"/><path d="M94.7291 104.358C91.1691 104.358 88.1625 101.666 88.1625 98.483C88.1625 95.2817 91.1078 92.675 94.7291 92.675C98.3131 92.675 101.229 95.2817 101.229 98.483C101.229 101.666 98.2518 104.358 94.7291 104.358ZM94.7291 143.67C91.2998 143.67 88.5078 141.779 88.5078 139.455V113.086C88.5078 110.646 91.0665 108.94 94.7291 108.94C98.3731 108.94 101.02 110.683 101.02 113.086V139.455C101.02 141.74 98.1385 143.67 94.7291 143.67Z" fill="#C01E24"/><path d="M123.177 143.67C113.585 143.67 108.72 139.434 108.72 131.082V98.7583C108.72 96.281 111.939 94.6143 114.944 94.6143C118.036 94.6143 121.235 96.165 121.235 98.7583V108.94H128.16C130.473 108.94 131.683 111.304 131.683 113.638C131.683 116.406 130.233 118.34 128.16 118.34H121.235V131.082C121.235 132.525 121.463 132.889 123.177 132.889H126.153C129.905 132.889 131.613 135.685 131.613 138.281C131.613 140.877 129.905 143.67 126.153 143.67H123.177Z" fill="#C01E24"/><path d="M197.867 143.67C194.775 143.67 191.644 142.221 191.644 139.456V123.952C191.644 121.744 189.657 119.654 187.552 119.654C185.712 119.654 183.808 121.262 183.808 123.952V139.456C183.808 141.701 180.868 143.67 177.517 143.67C174.088 143.67 171.296 141.78 171.296 139.456V94.2583C171.296 91.8196 173.855 90.1143 177.517 90.1143C181.103 90.1143 183.808 91.8956 183.808 94.2583V111.808C185.483 110.01 188.068 108.526 191.497 108.526C198.359 108.526 204.157 115.592 204.157 123.952V139.456C204.157 142.352 200.896 143.67 197.867 143.67Z" fill="#C01E24"/></svg>';
+  document.getElementById('topLogo').innerHTML = LOGO;
+  document.getElementById('invLogo').innerHTML = LOGO;
+
+  var START = 5000, PSTX_HOLD = 500, ECF = 1000;
+  var RM = function(n){ return "RM " + Math.abs(n).toLocaleString("en-MY",{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var SRM = function(n){ return (n<0?"− ":"+ ") + "RM " + Math.abs(n).toLocaleString("en-MY",{minimumFractionDigits:2,maximumFractionDigits:2}); };
+
+  // ---- funding sources. In this model EVERY method routes through the wallet: wallet-funded
+  // reserves existing money; external methods are received into the wallet then held.
+  var FUNDING_OPTIONS = [
+    { key:"Wallet", label:"Wallet balance" },
+    { key:"External", label:"External payment" }
+  ];
+  var FUNDING_LABEL = {}, FUNDING_SHORT = { Wallet:"Wallet", External:"External" };
+  FUNDING_OPTIONS.forEach(function(f){ FUNDING_LABEL[f.key] = f.label; });
+
+  // ---- state ----
+  var LINEAR = ["PreLive","Live","Cooling","Allotment","Success"];
+  var STAGE_LBL = { PreLive:"Pre-Live", Live:"Live", Cooling:"Cooling-off", Allotment:"Share Allotment", Success:"Success", Failed:"Failed" };
+  var STAGE_COLOR = { PreLive:"#2e90fa", Live:"#12b76a", Cooling:"#fb6514", Allotment:"#2e90fa", Success:"#12b76a", Failed:"#f04438" };
+  var INV_COLOR = { None:"#98a2b3", Paid:"#12b76a", RefundRequested:"#fb6514", Refunded:"#98a2b3", Allotted:"#12b76a" };
+  var s, lastMutation;
+
+  function reset(){
+    s = { stage:"PreLive", inv:"None", funding:"Wallet", refundBy:null, log:[], txNewKind:null, failedAt:-1 };
+    lastMutation = null;
+    log("Campaign is Pre-Live. Investor's wallet holds "+RM(START)+" ("+RM(PSTX_HOLD)+" already on hold for a PSTX open order). No ECF pledge yet.","");
+    render();
+  }
+  function log(html, klass, sub){ s.log.unshift({ html:html, klass:klass||"", sub:sub||"" }); }
+  function isWallet(){ return s.funding === "Wallet"; }
+  function paymentMade(){ return ["Paid","RefundRequested","Refunded","Allotted"].indexOf(s.inv)>-1; }
+
+  // ---- derived wallet. Every method routes through the wallet: external payment is credited in
+  // (Balance ↑) then held; wallet-funded just reserves existing money. ----
+  function wallet(){
+    var ecfHeld = (s.inv==="Paid" || s.inv==="RefundRequested");           // held for ANY method
+    var externalCredit = (!isWallet() && paymentMade()) ? ECF : 0;         // external money received INTO wallet
+    var deducted = (s.inv==="Allotted") ? ECF : 0;                         // permanent spend at allotment (any method)
+    var balance = START + externalCredit - deducted;
+    var locked  = PSTX_HOLD + (ecfHeld ? ECF : 0);
+    return { balance:balance, locked:locked, available:balance-locked, ecfHeld:ecfHeld };
+  }
+  function bucket(){
+    if (s.inv==="None") return null;
+    if (s.inv==="Refunded" || s.stage==="Failed") return { t:"Closed", c:"b-grey" };
+    if (s.inv==="Allotted") return { t:"Allotted", c:"b-ok" };
+    return { t:"Active", c:"b-info" };
+  }
+  function payStatus(){
+    switch(s.inv){
+      case "None": return { t:"Not invested", c:"b-grey" };
+      case "Paid": return { t:"Paid", c:"b-ok" };
+      case "RefundRequested": return { t:"Refund Requested", c:"b-pend" };
+      case "Refunded": return { t:"Refunded", c:"b-grey" };
+      case "Allotted": return { t:"Allotted", c:"b-ok" };
+    }
+  }
+  function campBadgeClass(){
+    if (s.stage==="Failed") return "b-red";
+    if (s.stage==="Success") return "b-ok";
+    if (s.stage==="Cooling") return "b-pend";
+    return "b-info";
+  }
+
+  // ---- transitions ----
+  function selectFunding(key){ s.funding = key; render(); }
+
+  function invest(){
+    s.inv="Paid";
+    if (isWallet()){
+      s.txNewKind=null; lastMutation={avail:1,hold:1};
+      log("Paid "+RM(ECF)+" from wallet at ECF checkout. Account Balance → Balance On Hold: <span class='mono'>LockedAmount +"+ECF+"</span>, <span class='mono'>Balance</span> unchanged. Available dropped by "+RM(ECF)+".","money","No transaction row — a hold is a reservation of money already in the wallet.");
+    } else {
+      s.txNewKind="payment"; lastMutation={hold:1};
+      log("Paid "+RM(ECF)+" by <b>external payment</b>. The confirmed payment tops up the wallet (<span class='mono'>Balance +"+ECF+"</span>) and is immediately locked as an ECF hold (<span class='mono'>LockedAmount +"+ECF+"</span>). Available unchanged — it now shows in Balance On Hold.","money","Writes ONE <b>Top up</b> credit row for the incoming payment; the hold itself writes no row.");
+    }
+    render();
+  }
+  function reqRefund(){
+    s.inv="RefundRequested"; s.refundBy="investor"; s.txNewKind=null; lastMutation=null;
+    log("Investor requested a refund while campaign is <b>"+STAGE_LBL[s.stage]+"</b> — eligible pre-allotment. Status → <b>Refund Requested</b>, pending approval.","warn");
+    render();
+  }
+  function cancelReq(){
+    s.inv="Paid"; s.refundBy=null; lastMutation=null;
+    log("Refund request cancelled. Investment back to <b>Paid</b>; nothing moved.","");
+    render();
+  }
+  function release(by){
+    s.inv="Refunded"; s.refundBy=by; s.txNewKind=null; lastMutation={avail:1,hold:1};
+    var who = by==="admin" ? "Admin issued the refund" : by==="system" ? "System auto-refunded the pledge (campaign failed)" : "Refund approved";
+    log(who+". The ECF hold is released back to Account Balance: <span class='mono'>LockedAmount −"+ECF+"</span>, <span class='mono'>Balance</span> unchanged, Available +"+RM(ECF)+".","money","No transaction row — the money is released from on-hold back to spendable wallet balance. Same whether the pledge was paid from the wallet or externally. Audit entry records who/what triggered it.");
+    render();
+  }
+  function adminRefund(){ release("admin"); }
+  function approveRefund(){ release(s.refundBy || "investor"); }
+
+  function allot(){
+    s.inv="Allotted"; s.stage="Success"; s.txNewKind="allot"; lastMutation={hold:1};
+    log("Shares allotted — <b>permanent deduction</b>: <span class='mono'>Balance −"+ECF+"</span> AND <span class='mono'>LockedAmount −"+ECF+"</span>. The money was already in the wallet on hold.","debit","One Debit row written — event <b>Invest</b> (−"+RM(ECF)+"). Point of no return — refund now refused.");
+    render();
+  }
+  function advance(to){
+    s.stage=to; s.txNewKind=null; lastMutation=null;
+    var note = (to==="Cooling") ? "Refund still available (pre-allotment, any payment method)." :
+               (to==="Allotment") ? "Pre-allotment window closes — refund no longer available." :
+               (to==="Success") ? "Campaign succeeded." : "";
+    log("Campaign advanced to <b>"+STAGE_LBL[to]+"</b>. "+note, to==="Allotment"?"warn":"");
+    render();
+  }
+  function fail(){
+    var wasHeld = (s.inv==="Paid" || s.inv==="RefundRequested");
+    s.failedAt = LINEAR.indexOf(s.stage);
+    s.stage="Failed"; s.txNewKind=null; lastMutation=null;
+    if (wasHeld){ release("system"); return; }
+    log("Campaign failed / cancelled. No pledge on this investment to refund.","warn");
+    render();
+  }
+
+  // ---- available actions ----
+  function actions(){
+    var a = [], preAllot = (s.stage==="PreLive"||s.stage==="Live"||s.stage==="Cooling"), isW = isWallet();
+    if (s.stage==="Success" || s.stage==="Failed"){
+      a.push({ label:"Reset — run another scenario", sub:"Back to Pre-Live, no pledge", fn:reset, kind:"ghost", ico:"↺" });
+      return a;
+    }
+    if (s.inv==="RefundRequested"){
+      a.push({ label:"Approve refund → release hold", sub:"Releases the hold back to wallet (no transaction row)", fn:approveRefund, kind:"primary", ico:"✓" });
+      a.push({ label:"Cancel request", sub:"Back to Paid", fn:cancelReq, kind:"ghost", ico:"←" });
+      a.push({ label:"Reset", sub:"", fn:reset, kind:"ghost", ico:"↺" });
+      return a;
+    }
+    if (s.stage==="Live" && s.inv==="None"){
+      a.push({ label:"Invest RM1,000 · "+(isW?"Pay with Wallet":"Pay by external payment"), sub:isW?"Locks existing wallet funds → On Hold":"Tops up wallet, then held → On Hold", fn:invest, kind:"primary", ico:"＋" });
+    }
+    if (preAllot && s.inv==="Paid"){
+      a.push({ label:"Investor: request refund", sub:"Eligible — campaign is "+STAGE_LBL[s.stage]+" (pre-allotment)", fn:reqRefund, ico:"↩" });
+      a.push({ label:"Admin: issue refund", sub:"Releases the hold back to wallet, on the investor's behalf", fn:adminRefund, ico:"⚙" });
+    }
+    if (s.stage==="Allotment" && s.inv==="Paid"){
+      a.push({ label:"Allot shares (permanent deduction)", sub:"Balance −1,000 · writes the Invest debit row", fn:allot, kind:"primary", ico:"◆" });
+      a.push({ label:"Refund", sub:"Refused — pre-allotment window closed", disabled:true, ico:"✕" });
+    }
+    if (s.stage==="Allotment" && (s.inv==="Refunded" || s.inv==="None")){
+      a.push({ label:"Complete allotment → Success", sub:s.inv==="Refunded"?"This investment was refunded — excluded":"", fn:function(){ advance("Success"); }, kind:"primary", ico:"◆" });
+    }
+    var next = { PreLive:"Live", Live:"Cooling", Cooling:"Allotment" }[s.stage];
+    if (next){
+      a.push({ label:"Advance campaign → "+STAGE_LBL[next], sub:next==="Allotment"?"Closes the refund window":"", fn:function(){ advance(next); }, kind:"step", ico:"→" });
+    }
+    if (preAllot){
+      a.push({ label:"Campaign fails / cancelled", sub:(s.inv==="Paid"||s.inv==="RefundRequested")?"Auto-releases the hold back to the wallet":"Terminal — no pledge to refund", fn:fail, kind:"danger", ico:"✕" });
+    }
+    a.push({ label:"Reset", sub:"", fn:reset, kind:"ghost", ico:"↺" });
+    return a;
+  }
+
+  // ================= render =================
+  var el = function(t,c,h){ var e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+
+  function renderStateBanner(){
+    var ps = payStatus();
+    var invSub = s.inv==="None" ? "No pledge in this session yet" : "Paid via "+FUNDING_SHORT[s.funding];
+    document.getElementById("stateBanner").innerHTML =
+      '<div class="sb"><div class="sb-lbl">Campaign stage — where we are now</div><div class="sb-val"><span class="dot2" style="background:'+STAGE_COLOR[s.stage]+'"></span>'+STAGE_LBL[s.stage]+'</div><div class="sb-sub">GreenTech Renewables Bhd</div></div>'+
+      '<div class="sb"><div class="sb-lbl">Your investment status</div><div class="sb-val"><span class="dot2" style="background:'+INV_COLOR[s.inv]+'"></span>'+ps.t+'</div><div class="sb-sub">'+invSub+'</div></div>';
+  }
+
+  function renderFundingPicker(){
+    var host = document.getElementById("fundingPicker");
+    if (!(s.inv==="None" && s.stage==="Live")){ host.style.display="none"; host.innerHTML=""; return; }
+    host.style.display="block";
+    var html = '<div class="fp-label">Choose how this pledge is paid, then invest below</div><div class="fp-chips">';
+    FUNDING_OPTIONS.forEach(function(f){
+      html += '<button type="button" class="fp-chip'+(s.funding===f.key?" sel":"")+'" data-k="'+f.key+'">'+f.label+'</button>';
+    });
+    html += '</div><div class="fp-hint">'+(isWallet()
+      ? "Wallet-funded — reserves money already in the wallet."
+      : "External — the confirmed payment tops up the wallet, then is held. Shows in Balance On Hold like any pledge.")+'</div>';
+    host.innerHTML = html;
+    Array.prototype.forEach.call(host.querySelectorAll(".fp-chip"), function(btn){
+      btn.addEventListener("click", function(){ selectFunding(btn.getAttribute("data-k")); });
+    });
+  }
+
+  function renderSteps(){
+    var host = document.getElementById("steps"); host.innerHTML="";
+    var cur = LINEAR.indexOf(s.stage);
+    var failed = s.stage==="Failed";
+    LINEAR.forEach(function(st,i){
+      var cls = "step", dotTxt = (i+1);
+      if (failed){
+        if (i < s.failedAt){ cls+=" done"; dotTxt="✓"; }
+        else if (i === s.failedAt){ cls+=" fail"; dotTxt="✕"; }
+      } else {
+        if (i < cur){ cls+=" done"; dotTxt="✓"; }
+        else if (i === cur){ cls+=" active"; }
+      }
+      var d = el("div", cls);
+      d.innerHTML = '<span class="dot">'+dotTxt+'</span><span class="step-label">'+STAGE_LBL[st]+'</span>';
+      host.appendChild(d);
+    });
+    document.getElementById("stepperSub").innerHTML = failed
+      ? "This run ended in <b>Failed</b> at the "+STAGE_LBL[LINEAR[s.failedAt]]+" stage."
+      : "You are here → <b>"+STAGE_LBL[s.stage]+"</b>";
+    document.getElementById("failBanner").classList.toggle("show", failed);
+  }
+
+  function renderInv(){
+    var host = document.getElementById("invBody");
+    if (s.inv==="None"){
+      var helper = s.stage==="PreLive" ? "Campaign opens for investment once it's Live."
+                 : s.stage==="Live" ? "Use the panel above to invest."
+                 : s.stage==="Failed" ? "This run ended without an investment."
+                 : "The investing window passed without a pledge this session.";
+      host.innerHTML = '<div class="inv-empty"><div class="ie-ico">–</div><div class="ie-txt"><b>No investment yet</b><span>'+helper+'</span></div></div>'+
+        '<div class="badges" style="margin-top:14px;"><span class="badge '+campBadgeClass()+'"><span class="k">Campaign</span>'+STAGE_LBL[s.stage]+'</span></div>';
+      return;
+    }
+    var ps = payStatus(), bk = bucket(), isW = isWallet();
+    var badges = '<span class="badge '+campBadgeClass()+'"><span class="k">Campaign</span>'+STAGE_LBL[s.stage]+'</span>'+
+                 '<span class="badge '+ps.c+'"><span class="k">Payment</span>'+ps.t+'</span>';
+    if (bk) badges += '<span class="badge '+bk.c+'"><span class="k">Bucket</span>'+bk.t+'</span>';
+    var sub = "GreenTech Renewables Bhd · funded by "+FUNDING_LABEL[s.funding];
+    var steps = [
+      { k:"Pending Payment", on:true },
+      { k:"Paid", on:["Paid","RefundRequested","Refunded","Allotted"].indexOf(s.inv)>-1 }
+    ];
+    var flow;
+    if (s.inv==="RefundRequested" || s.inv==="Refunded"){
+      flow = [ steps[0], steps[1],
+        { k:"Refund Requested", on:["RefundRequested","Refunded"].indexOf(s.inv)>-1, refund:true, cur:s.inv==="RefundRequested" },
+        { k:"Refunded", on:s.inv==="Refunded", refund:true, cur:s.inv==="Refunded" } ];
+    } else {
+      flow = [ steps[0], steps[1],
+        { k:"Allotted", on:s.inv==="Allotted", cur:s.inv==="Allotted" } ];
+      if (s.inv==="Paid") flow[1].cur=true;
+    }
+    var flowHtml = '<div class="inv-flow">'+flow.map(function(f){
+      return '<div class="fl'+(f.on?" on":"")+(f.cur?" cur":"")+(f.refund?" refund":"")+'">'+f.k+'</div>';
+    }).join("")+'</div>';
+    var note = "";
+    if (!isW && (s.inv==="Paid" || s.inv==="RefundRequested")) note = '<div class="fund-note">Paid by <b>external payment</b> — it tops up your wallet and is locked as an ECF hold, so it appears in <b>Balance On Hold</b> like any wallet-funded pledge.</div>';
+    host.innerHTML = '<div class="inv-top"><div><div class="inv-amt">'+RM(ECF)+'</div><div class="inv-sub">'+sub+'</div></div></div>'+
+      '<div class="badges">'+badges+'</div>'+flowHtml+note;
+  }
+
+  function renderWallet(){
+    var w = wallet();
+    var flashA = (lastMutation && lastMutation.avail) ? " flash" : "";
+    var flashB = (lastMutation && lastMutation.hold) ? " flash" : "";
+    var html = '<div class="wallet-tiles">'+
+      '<div class="tile'+flashA+'"><div class="t-lbl">Account Balance <span style="color:var(--faint)">(available)</span></div><div class="t-val">'+RM(w.available)+'</div></div>'+
+      '<div class="tile'+flashB+'"><div class="t-lbl">Balance On Hold</div><div class="t-val">'+RM(w.locked)+'</div></div>'+
+      '</div>';
+    html += '<div class="hold-break">'+
+      '<div class="hbrow"><span class="l"><span class="pin"></span>PSTX open orders</span><span class="a">'+RM(PSTX_HOLD)+'</span></div>';
+    if (s.inv!=="None"){
+      var ecfNote = w.ecfHeld ? ""
+            : (s.inv==="Allotted" ? " <span style='font-weight:400;color:var(--faint)'>· allotted</span>"
+                                  : " <span style='font-weight:400;color:var(--faint)'>· released</span>");
+      html += '<div class="hbrow ecf'+(w.ecfHeld?"":" gone")+'"><span class="l"><span class="pin"></span>ECF investment'+ecfNote+'</span><span class="a">'+RM(w.ecfHeld?ECF:0)+'</span></div>';
+    }
+    html += '</div>';
+    html += '<div class="hbrow" style="padding:10px 4px 0;font-size:12px;color:var(--muted)"><span class="l">Total wallet value</span><span class="a">'+RM(w.balance)+'</span></div>';
+    document.getElementById("walletBody").innerHTML = html;
+  }
+
+  function renderTxns(){
+    var ext = !isWallet(), rows = [];
+    if (s.inv==="Allotted"){
+      rows.push({ ev:"Invest", d:"GreenTech Renewables Bhd · allotment", amt:-ECF, cls:"debit", status:"Approved", isNew:s.txNewKind==="allot" });
+    }
+    if (ext && paymentMade()){
+      rows.push({ ev:"Top up", d:"ECF payment received", amt:+ECF, cls:"credit", status:"Approved", isNew:s.txNewKind==="payment" });
+    }
+    rows.push({ ev:"Top up", d:"30 Jun 2026", amt:+START, cls:"credit", status:"Completed" });
+    var body = '<table class="tx"><thead><tr><th>Event</th><th class="r">Amount</th><th class="r">Status</th></tr></thead><tbody>';
+    rows.forEach(function(r){
+      body += '<tr class="'+(r.isNew?"tx-new":"")+'"><td><span class="tx-ev">'+r.ev+'</span><div class="tx-d">'+r.d+'</div></td>'+
+              '<td class="r"><span class="tx-amt '+r.cls+'">'+SRM(r.amt)+'</span></td>'+
+              '<td class="r"><span class="tx-d">'+r.status+'</span></td></tr>';
+    });
+    body += '</tbody></table>';
+    var note = "";
+    if (s.inv==="Paid" || s.inv==="RefundRequested"){
+      note = ext ? "<b>Payment tops up the wallet, then held.</b> The "+RM(ECF)+" <b>Top up</b> row above is the incoming external payment; the money now sits in Balance On Hold. The hold itself writes no row."
+                 : "<b>The hold makes no row.</b> "+RM(ECF)+" of your existing wallet money sits in Balance On Hold (a reservation). It only hits the ledger if it's allotted (an <b>Invest</b> debit).";
+    } else if (s.inv==="Refunded"){
+      note = "<b>Refund made no row.</b> The ECF hold was released back to Account Balance — money moved from on-hold to spendable inside the wallet, so there's no credit/debit to record. Only an audit entry."+(ext?" The "+RM(ECF)+" Top up credit above stays in history — that money is now spendable in the wallet.":"");
+    } else if (s.inv==="Allotted"){
+      note = "<b>Allotment wrote the Invest debit row.</b> The held wallet money was permanently spent on shares — a real debit against Balance."+(ext?" (The earlier +"+RM(ECF)+" Top up brought the money in; the −"+RM(ECF)+" Invest is the allotment — net zero, the money passed through the wallet into shares.)":"");
+    }
+    if (note) body += '<div class="no-row-note">▹ <span>'+note+'</span></div>';
+    document.getElementById("txnBody").innerHTML = body;
+  }
+
+  function renderActions(){
+    var host = document.getElementById("actions"); host.innerHTML="";
+    actions().forEach(function(a){
+      var b = el("button", "act "+(a.kind||"")+(a.disabled?" disabled":""));
+      b.type = "button";
+      b.innerHTML = '<span class="ico">'+(a.ico||"•")+'</span><span>'+a.label+(a.sub?'<span class="sub">'+a.sub+'</span>':"")+'</span>'+(a.disabled?"":'<span class="go">→</span>');
+      if (!a.disabled && a.fn) b.addEventListener("click", a.fn);
+      host.appendChild(b);
+    });
+  }
+
+  function renderLog(){
+    var host = document.getElementById("logList"); host.innerHTML="";
+    if (!s.log.length){ host.appendChild(el("div","le-empty","No actions yet.")); return; }
+    s.log.forEach(function(e){
+      host.appendChild(el("div","le "+e.klass, e.html + (e.sub?'<span class="lt">'+e.sub+'</span>':"")));
+    });
+  }
+
+  function render(){
+    renderStateBanner();
+    renderFundingPicker();
+    renderActions();
+    renderLog();
+    renderSteps();
+    renderInv();
+    renderWallet();
+    renderTxns();
+  }
+
+  reset();
+})();
+</script>
