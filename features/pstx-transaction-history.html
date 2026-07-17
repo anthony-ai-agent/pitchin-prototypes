@@ -1,17 +1,20 @@
 <!-- PROTOTYPE — PSTX Account · Transaction History
      Phase 2.2  ECF share allotment  → one DEBIT row  (Event = ECF investment, money OUT to buy allotted shares)
-     Phase 2.3  Refund               → CREDIT rows     (Event = Refund, money BACK into wallet) — 3 triggers
+     NOTE: Refund does NOT write a transaction row. A refund only RELEASES the ECF hold
+           (Balance on Hold → Account Balance); the money was already in the wallet and never
+           moved in/out, so there is no wallet credit/debit to record. The hold simply drops off
+           the Balance on Hold card. (Was previously prototyped as a "Refund" credit row — removed.)
      Faithful to PitchinCustomerWeb wallet.component (nicholas-pstx-account-view / staging):
        - desktop = mat-table with the real per-column header filters (Event ▽ / Status ▽, checkbox menus)
        - mobile <1100px = .wallet-tx-card list (not a table)
        - Balance on Hold card = the shipped Phase 2.1 three-bucket drillable card (PSTX Open Orders /
          Withdrawal Requests / ECF investment), reused as-is — not re-explained here.
-       - Counter column relabelled "Counter / Campaign": PSTX trades → ticker link; Refund / ECF
+       - Counter column relabelled "Counter / Campaign": PSTX trades → ticker link; ECF
          investment → campaign name, linking to the campaign page.
-     Throwaway reference for an external dev. The "2.2 / 2.3" tags + row tint are PROTOTYPE annotations only. -->
+     Throwaway reference for an external dev. The "2.2" tag + row tint are PROTOTYPE annotations only. -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PSTX Account — Transaction History (ECF allotment debit + Refund credits)</title>
+<title>PSTX Account — Transaction History (ECF allotment debit)</title>
 <style>
   :root {
     --primary: #BF2026;          /* brand red  → Debit / Withdraw amounts (tw-text-primary) */
@@ -29,7 +32,6 @@
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --tag22: #b5651d; --tag22-bg: #fdf1e3;   /* 2.2 amber (prototype-only) */
-    --tag23: #1f6a6c; --tag23-bg: #e2f1f1;   /* 2.3 teal  (prototype-only) */
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
@@ -145,7 +147,7 @@
   .filter-menu__check { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
   .filter-menu__check input { width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
   .filter-menu__check label { font-size: 13px; color: var(--ink); cursor: pointer; font-weight: 500; }
-  .filter-menu__new { font-size: 8.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; margin-left: 5px; color: var(--tag23); background: var(--tag23-bg); }
+  .filter-menu__new { font-size: 8.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: 1px 5px; border-radius: 4px; margin-left: 5px; color: var(--tag22); background: var(--tag22-bg); }
   .filter-menu__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
   .filter-menu__clear { border: none; background: none; padding: 6px 10px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
   .filter-menu__apply { border: none; border-radius: 6px; background: #027a48; padding: 6px 14px; font-size: 13px; font-weight: 600; color: #fff; cursor: pointer; }
@@ -154,9 +156,7 @@
   /* prototype annotation: phase tag + row tint (does NOT ship) */
   .ptag { display: inline-flex; align-items: center; font-size: 9.5px; font-weight: 800; letter-spacing: .04em; border-radius: 5px; padding: 1px 6px; margin-left: 9px; vertical-align: 1px; }
   .ptag.p22 { color: var(--tag22); background: var(--tag22-bg); }
-  .ptag.p23 { color: var(--tag23); background: var(--tag23-bg); }
   tr.new22 td { background: #fffaf3; } tr.new22 td:first-child { box-shadow: inset 3px 0 0 var(--tag22); }
-  tr.new23 td { background: #f4fbfb; } tr.new23 td:first-child { box-shadow: inset 3px 0 0 var(--tag23); }
 
   /* ---------- mobile phone frame ---------- */
   .phone { width: 340px; border: 9px solid #10161f; border-radius: 34px; overflow: hidden; background: #fff; position: relative; }
@@ -172,7 +172,6 @@
   .txn-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
   .txc { border: 1px solid var(--hair); border-radius: 12px; padding: 12px 14px; position: relative; }
   .txc.new22 { box-shadow: inset 3px 0 0 var(--tag22); background: #fffaf3; }
-  .txc.new23 { box-shadow: inset 3px 0 0 var(--tag23); background: #f4fbfb; }
   .txc__sum { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   .txc__main { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .txc__title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -209,7 +208,7 @@
   table.spec td .mono, .kv .mono { font-family: var(--mono); font-size: 12px; background: #f4f6f8; border: 1px solid var(--hair); border-radius: 4px; padding: 1px 6px; }
   .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; border: 1px solid rgba(0,0,0,.12); }
   .pill-in { font-size: 10px; font-weight: 800; border-radius: 5px; padding: 1px 6px; }
-  .pill-in.p22 { color: var(--tag22); background: var(--tag22-bg); } .pill-in.p23 { color: var(--tag23); background: var(--tag23-bg); }
+  .pill-in.p22 { color: var(--tag22); background: var(--tag22-bg); }
   .kv { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
   .kv > div { font-size: 13px; color: #2d3646; padding-left: 16px; position: relative; }
   .kv > div::before { content: ""; position: absolute; left: 2px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--secondary-light); }
@@ -221,11 +220,11 @@
 
 <div class="topbar">
   <div class="in">
-    <h1>PSTX Account — Transaction History <span>· ECF allotment &amp; refunds</span></h1>
+    <h1>PSTX Account — Transaction History <span>· ECF allotment debit</span></h1>
     <div class="spacer"></div>
     <div class="legend">
       <span class="lg"><span class="pill-in p22">2.2</span> ECF investment <b class="amt debit">− debit</b></span>
-      <span class="lg"><span class="pill-in p23">2.3</span> Refund <b class="amt credit">+ credit</b> · 3 triggers</span>
+      <span class="lg">Refund = hold release only · <b>no row</b></span>
     </div>
   </div>
 </div>
@@ -246,8 +245,8 @@
 
   <!-- reference -->
   <div class="ref">
-    <h4>The rows this adds</h4>
-    <p class="sub">Every new row is a plain <span class="mono" style="font-family:var(--mono);font-size:12px;">WalletTransactionHistory</span> row — no new column. Amount sign &amp; colour are driven by <span class="mono" style="font-family:var(--mono);font-size:12px;">CreditFlow</span>, exactly like Buy / Top&nbsp;up today.</p>
+    <h4>The row this adds</h4>
+    <p class="sub">The new row is a plain <span class="mono" style="font-family:var(--mono);font-size:12px;">WalletTransactionHistory</span> row — no new column. Amount sign &amp; colour are driven by <span class="mono" style="font-family:var(--mono);font-size:12px;">CreditFlow</span>, exactly like Buy / Top&nbsp;up today.</p>
     <div class="tblwrap"><table class="spec"><thead><tr>
       <th>Phase</th><th>Event</th><th>CreditFlow → amount</th><th>Trigger (sub-line)</th><th>Counter / Campaign</th><th>Status</th>
     </tr></thead><tbody>
@@ -260,30 +259,17 @@
         <td>Approved</td>
       </tr>
       <tr>
-        <td><span class="pill-in p23">2.3</span></td>
-        <td><b>Refund</b><div style="color:var(--muted);font-size:11.5px;">existing enum <span class="mono">Refund = 5</span></div></td>
-        <td rowspan="3" style="vertical-align:middle;"><span class="sw" style="background:var(--secondary-light)"></span><b style="color:var(--secondary-light)">Credit → + RM</b></td>
-        <td>"Campaign cancelled" — <b>system</b>-triggered (campaign failed/cancelled pre-allotment)</td>
-        <td rowspan="3" style="vertical-align:middle;">Campaign name, links to campaign page</td>
-        <td rowspan="3" style="vertical-align:middle;">Approved</td>
-      </tr>
-      <tr>
-        <td><span class="pill-in p23">2.3</span></td>
-        <td>Refund</td>
-        <td>"Released by pitchIN" — <b>admin</b>-initiated</td>
-      </tr>
-      <tr>
-        <td><span class="pill-in p23">2.3</span></td>
-        <td>Refund</td>
-        <td>"Requested by investor" — <b>investor</b>-initiated</td>
+        <td style="color:var(--muted)">—</td>
+        <td><b>Refund</b><div style="color:var(--muted);font-size:11.5px;">all 3 triggers: system / admin / investor</div></td>
+        <td colspan="4" style="color:var(--muted)"><b style="color:var(--ink)">No transaction row.</b> A refund only releases the ECF hold — the held amount moves from <b>Balance on Hold</b> back to <b>Account Balance</b>. The money never left the wallet, so there is no wallet credit/debit to record; the pledge simply drops off the Balance on Hold card.</td>
       </tr>
     </tbody></table></div>
     <div class="kv">
-      <div><b>Header filters, not a segmented control.</b> Event and Status are filtered the same way the rest of the table already works — a "▽" trigger embedded in each column header opens a checkbox menu (All / Clear / Apply). <span class="mono">ECF investment</span> and <span class="mono">Refund</span> just need adding to the existing Event-filter option list; Status reuses the existing Pending / Approved / Completed / Failed set untouched.</div>
-      <div><b>Counter → "Counter / Campaign".</b> Same column, same link styling as a PSTX ticker — for these two events it renders the campaign name instead of a ticker and routes to the campaign page (<span class="mono">/equity/{{slug}}</span>, same pattern as My Investments) instead of <span class="mono">/pstx/{{ticker}}</span>.</div>
-      <div><b>Balance on Hold is unchanged from Phase 2.1</b> — same three-bucket drillable card (PSTX Open Orders / Withdrawal Requests / ECF investment). It isn't re-specified here; this screen shows it simply reflecting fewer/no held ECF pledges once they've allotted or been refunded.</div>
-      <div><b>Money-sensitive (backend, one transaction):</b> allotment debits the wallet and releases the ECF hold; a refund credits the wallet and releases the ECF hold — same invariant, opposite sign. Front-end re-reads wallet-details; no client-side maths. Verify on real Postgres (ADR-0005).</div>
-      <div>The <b>2.2 / 2.3 tags &amp; row tint above are prototype annotations only</b> — they do not ship. The campaign-link click in this prototype just shows where it would navigate (real build uses <span class="mono">routerLink</span>).</div>
+      <div><b>Header filters, not a segmented control.</b> Event and Status are filtered the same way the rest of the table already works — a "▽" trigger embedded in each column header opens a checkbox menu (All / Clear / Apply). Only <span class="mono">ECF investment</span> needs adding to the existing Event-filter option list (no <span class="mono">Refund</span> option — refunds don't appear here); Status reuses the existing Pending / Approved / Completed / Failed set untouched.</div>
+      <div><b>Counter → "Counter / Campaign".</b> Same column, same link styling as a PSTX ticker — for the ECF investment event it renders the campaign name instead of a ticker and routes to the campaign page (<span class="mono">/equity/{{slug}}</span>, same pattern as My Investments) instead of <span class="mono">/pstx/{{ticker}}</span>.</div>
+      <div><b>Balance on Hold is unchanged from Phase 2.1</b> — same three-bucket drillable card (PSTX Open Orders / Withdrawal Requests / ECF investment). It isn't re-specified here; this screen shows it simply reflecting fewer/no held ECF pledges once they've allotted (→ debit row) or been refunded (→ hold released, no row).</div>
+      <div><b>Allotment is the only money-movement row.</b> Allotment converts the ECF hold into a permanent wallet debit — <span class="mono">Balance</span> drops, <span class="mono">LockedAmount</span> drops, one Debit transaction row. A <b>refund</b> only releases the hold — <span class="mono">LockedAmount</span> drops but <span class="mono">Balance</span> is unchanged (the held money returns to Account Balance), so <b>no transaction row is written</b>. Front-end re-reads wallet-details; no client-side maths. Verify on real Postgres (ADR-0005).</div>
+      <div>The <b>2.2 tag &amp; row tint above are prototype annotations only</b> — they do not ship. The campaign-link click in this prototype just shows where it would navigate (real build uses <span class="mono">routerLink</span>).</div>
     </div>
   </div>
 </div>
@@ -312,9 +298,6 @@
   /* =============== data =============== */
   // newest first. amount<0 => debit(red). amount>0 => credit(green).
   var TX = [
-    { phase: "2.3", date: "11 Jul 2026", time: "03:12 PM", event: "Refund", sub: "Requested by investor", amount: 1500, campaign: "BluePeak Ventures", slug: "/equity/bluepeak-ventures", status: "ok" },
-    { phase: "2.3", date: "10 Jul 2026", time: "05:40 PM", event: "Refund", sub: "Released by pitchIN", amount: 800, campaign: "TechNova Sdn Bhd", slug: "/equity/technova", status: "ok" },
-    { phase: "2.3", date: "10 Jul 2026", time: "09:00 AM", event: "Refund", sub: "Campaign cancelled", amount: 2000, campaign: "GreenHarvest Bhd", slug: "/equity/greenharvest", status: "ok" },
     { phase: "2.2", date: "09 Jul 2026", time: "10:22 AM", event: "ECF investment", amount: -1000, campaign: "GreenTech Renewables Bhd", slug: "/equity/greentech-renewables", status: "ok" },
     { date: "02 Jul 2026", time: "04:40 PM", event: "Buy", trade: "buy", amount: -1030, ticker: "MYTECH", status: "ok", statusLabel: "Completed", action: true },
     { date: "30 Jun 2026", time: "11:02 AM", event: "Top up", amount: 5000, status: "ok" },
@@ -328,8 +311,7 @@
     { key: "Top up", label: "Top up" },
     { key: "Buy", label: "Buy" },
     { key: "Sell", label: "Sell" },
-    { key: "ECF investment", label: "ECF investment", isNew: true },
-    { key: "Refund", label: "Refund", isNew: true }
+    { key: "ECF investment", label: "ECF investment", isNew: true }
   ];
   var STATUS_OPTIONS = [
     { key: "Pending", label: "Pending" },
@@ -501,7 +483,7 @@
 
   /* =============== desktop table =============== */
   function eventCellHtml(r) {
-    var tag = r.phase === "2.2" ? '<span class="ptag p22">2.2</span>' : r.phase === "2.3" ? '<span class="ptag p23">2.3</span>' : '';
+    var tag = r.phase === "2.2" ? '<span class="ptag p22">2.2</span>' : '';
     var badgeHtml = r.trade ? '<span class="order-badge ' + r.trade + '">PSTX ' + (r.trade === "buy" ? "BUY" : "SELL") + '</span>' : '';
     var h = '<span class="tx-event">' + r.event + '</span>' + badgeHtml + tag;
     if (r.sub) h += '<div class="tx-sub" style="font-size:11.5px;color:var(--muted);font-style:italic;margin-top:2px;">' + r.sub + '</div>';
@@ -516,7 +498,7 @@
     var lbl = r.statusLabel || "Approved";
     return '<span class="badge ok">' + lbl + '</span>';
   }
-  function rowClass(r) { return r.phase === "2.2" ? "new22" : r.phase === "2.3" ? "new23" : ""; }
+  function rowClass(r) { return r.phase === "2.2" ? "new22" : ""; }
 
   function buildDesktopShell() {
     var app = el("div", "app");
@@ -583,19 +565,12 @@
     if (r.trade) {
       title.innerHTML = '<span class="txc__ticker">' + r.ticker + '</span><span class="order-badge ' + r.trade + '">PSTX ' + (r.trade === "buy" ? "BUY" : "SELL") + '</span>';
     } else {
-      var tag = r.phase === "2.2" ? '<span class="ptag p22">2.2</span>' : r.phase === "2.3" ? '<span class="ptag p23">2.3</span>' : '';
+      var tag = r.phase === "2.2" ? '<span class="ptag p22">2.2</span>' : '';
       title.innerHTML = '<span class="txc__event">' + r.event + '</span>' + tag;
     }
     main.appendChild(title);
     main.appendChild(el("div", "txc__meta", r.date + " · " + r.time));
     main.appendChild(el("div", null, badgeHtml(r)));
-    // 4th line — ONLY for Refund: trigger text + campaign link. ECF investment (2.2)
-    // and Top up/Withdrawal all stop at the status line, same as the shipped Top-up card.
-    if (r.phase === "2.3") {
-      var trig = el("div", "txc__trigger");
-      trig.innerHTML = r.sub + ' · <a class="counter-link" href="' + r.slug + '" onclick="__navDemo(\'' + r.slug + '\', event)">' + r.campaign + '</a>';
-      main.appendChild(trig);
-    }
     sumEl.appendChild(main);
     var right = el("div", "txc__right");
     right.appendChild(el("div", "txc__amt " + (r.amount < 0 ? "debit" : "credit"), RM(r.amount)));
